@@ -14,8 +14,8 @@ Parameters.Horizon = 5;
 Parameters.MeasurementRate = 0.4;
 
 SolverOptions.Tradeoff = 1;
-SolverOptions.Iters = 30;
-SolverOptions.NumCodewords = 100;
+SolverOptions.Iters = 10;
+SolverOptions.NumCodewords = 5;
 SolverOptions.FixedCodeMap = true;
 
 init_dist = zeros(Parameters.Runway * Parameters.Height * Parameters.Runway * 2, 1);
@@ -140,3 +140,50 @@ plot(obj_hist, '-k', 'LineWidth', 2);
 scatter(1:length(obj_hist), obj_hist, 'k', 'filled');
 xlabel('Iter');
 ylabel('Objective');
+
+%%
+
+ml_code = zeros(size(Problem.Transitions, 1), 1);
+angle = zeros(size(Problem.Transitions, 1), 1);
+
+for i = 1:size(Problem.Transitions, 1)
+    [~, ml_code(i)] = max(Problem.Controller.CodeGivenState(:, i));
+    [x, ballx, bally, ballvel] = ind2sub([Parameters.Runway Parameters.Runway Parameters.Height 2], i);
+    angle(i) = atan2(bally, ballx - x);
+end
+
+[angle, inds] = sort(angle);
+ml_code = ml_code(inds);
+
+relabeling = zeros(max(ml_code));
+code_count = 1;
+relabeled = false(max(ml_code));
+
+for i = 1:length(angle)
+    if ~relabeled(ml_code(i))
+        relabeling(ml_code(i)) = code_count;
+        code_count = code_count + 1;
+        relabeled(ml_code(i)) = true;
+    end
+end
+
+%%
+
+figure;
+hold on;
+
+for i = 1:SolverOptions.NumCodewords
+    scatter(cos(angle(ml_code == i)), sin(angle(ml_code == i)), 'filled');
+end
+
+pbaspect([1 0.5 1]);
+xlim([-1 1]);
+ylim([0 1]);
+title('Codewords on Unit Sphere');
+
+%%
+
+figure;
+hold on;
+
+scatter(angle, relabeling(ml_code), 'k', 'filled');
