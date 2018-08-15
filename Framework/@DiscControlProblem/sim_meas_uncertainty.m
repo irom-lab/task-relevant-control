@@ -1,4 +1,4 @@
-function [ traj, cum_cost ] = sim_meas_uncertainty(Obj, init_dist, meas_rate, horizon)
+function [ traj, cum_cost ] = sim_meas_uncertainty(Obj, init_dist, horizon)
 %SIMULATE_INIT_UNCERTAINTY Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -19,8 +19,7 @@ traj = [discretesample(init_dist, 1); zeros(horizon, 1)];
 costs = zeros(horizon + 1, 1);
 
 state_dist = init_dist;
-error_prob = (1 - meas_rate) / (n - 1);
-output_given_state = meas_rate .* eye(n) + error_prob .* (ones(n) - eye(n));
+output_given_state = Obj.Sensor;
 
 if isequal(Obj.SolverName, 'Info') && isequal(Obj.Controller.Estimator, 'Code')
     state_dist = [init_dist zeros(n, horizon)];

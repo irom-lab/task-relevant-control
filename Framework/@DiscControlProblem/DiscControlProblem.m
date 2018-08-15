@@ -8,6 +8,7 @@ classdef (Abstract) DiscControlProblem < ControlProblem
         Costs %(state, input)
         TerminalCosts
         Transitions %(next state, state, input)
+        Sensor
     end
     
     properties (SetAccess = protected)
@@ -20,6 +21,8 @@ classdef (Abstract) DiscControlProblem < ControlProblem
             
             [obj.Costs, obj.TerminalCosts] = costs(obj);
             obj.Transitions = transitions(obj);
+            
+            obj.Sensor = sensor(obj);
             
             if nargin > 2
                 obj.Init = Init;
@@ -38,6 +41,7 @@ classdef (Abstract) DiscControlProblem < ControlProblem
     methods (Abstract)
         costs
         transitions
+        sensor
     end
 end
 
