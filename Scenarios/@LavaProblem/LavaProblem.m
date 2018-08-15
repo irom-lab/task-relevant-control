@@ -44,6 +44,12 @@ classdef LavaProblem < DiscControlProblem
                 trans(i + 1, i, 3) = 1;
             end
         end
+        
+        function output_given_state = sensor(Obj)
+            n = size(Obj.Transitions, 1);
+            error_prob = (1 - Obj.Parameters.MeasurementRate) / (n - 1);
+            output_given_state = Obj.Parameters.MeasurementRate .* eye(n) + error_prob .* (ones(n) - eye(n));
+        end
     end
     
 end
