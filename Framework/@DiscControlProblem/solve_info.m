@@ -127,6 +127,7 @@ else
         end
         
         obj = [obj; objective(Obj, code_given_state, input_given_code, Obj.Init)];
+        fprintf('\t[%d]\tObjective: %f\n', iter, obj(end));
             
         if obj(end) < obj_val
             obj_val = obj(end);
