@@ -13,9 +13,9 @@ Parameters.Height = 5;
 Parameters.Horizon = 5;
 Parameters.MeasurementRate = 0.4;
 
-SolverOptions.Tradeoff = 1;
+SolverOptions.Tradeoff = 40;
 SolverOptions.Iters = 10;
-SolverOptions.NumCodewords = 5;
+SolverOptions.NumCodewords = 8;
 SolverOptions.FixedCodeMap = true;
 
 init_dist = zeros(Parameters.Runway * Parameters.Height * Parameters.Runway * 2, 1);
@@ -145,11 +145,13 @@ ylabel('Objective');
 
 ml_code = zeros(size(Problem.Transitions, 1), 1);
 angle = zeros(size(Problem.Transitions, 1), 1);
+entropy = zeros(size(Problem.Transitions, 1), 1);
 
 for i = 1:size(Problem.Transitions, 1)
     [~, ml_code(i)] = max(Problem.Controller.CodeGivenState(:, i));
     [x, ballx, bally, ballvel] = ind2sub([Parameters.Runway Parameters.Runway Parameters.Height 2], i);
     angle(i) = atan2(bally, ballx - x);
+    entropy(i) = -sum(Problem.Controller.CodeGivenState(:, i) .* log(Problem.Controller.CodeGivenState(:, i)));
 end
 
 [angle, inds] = sort(angle);
@@ -172,14 +174,25 @@ end
 figure;
 hold on;
 
+plot(cos(linspace(0, pi)), sin(linspace(0, pi)), 'k', 'LineWidth', 2);
+
 for i = 1:SolverOptions.NumCodewords
-    scatter(cos(angle(ml_code == i)), sin(angle(ml_code == i)), 'filled');
+    r = 1 + 0.1 * i;
+    scatter(r * cos(angle(ml_code == i)), r * sin(angle(ml_code == i)), 'filled');
 end
 
+mark_angles = deg2rad(0:15:180);
+
+for i = 1:length(mark_angles)
+    plot([0.99 * cos(mark_angles(i)); 1.01 * cos(mark_angles(i))], [0.99 * sin(mark_angles(i)); 1.01 * sin(mark_angles(i))], 'k', 'LineWidth', 2);
+end
+
+
+
 pbaspect([1 0.5 1]);
-xlim([-1 1]);
-ylim([0 1]);
-title('Codewords on Unit Sphere');
+xlim([-2 2]);
+ylim([0 2]);
+title(['Codewords on Unit Sphere with \beta = ' num2str(SolverOptions.Tradeoff)]);
 
 %%
 
