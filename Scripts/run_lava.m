@@ -11,13 +11,12 @@ samples = 50000;
 Parameters.Length = 4;
 Parameters.Goal = 3;
 Parameters.Horizon = 10;
+Parameters.MeasurementRate = 0.4;
 
 SolverOptions.Tradeoff = 0.01;
 SolverOptions.Iters = 30;
 SolverOptions.NumCodewords = 3;
 SolverOptions.FixedCodeMap = true;
-
-meas_rate = 0.4;
 
 init_dist = [0.3; 0.4; 0; 0.3; 0];
 init_dist = init_dist ./ sum(init_dist);
@@ -45,7 +44,7 @@ c1 = zeros(Parameters.Horizon + 1, samples);
 
 tic;
 parfor i = 1:samples
-    [~, c1(:, i)] = sim_meas_uncertainty(Problem, init_dist, meas_rate);
+    [~, c1(:, i)] = sim_meas_uncertainty(Problem, init_dist);
 end
 
 time = toc;
@@ -75,7 +74,7 @@ fprintf('Running N = %d simulations w/ state estimator...\n', samples);
 
 tic;
 parfor i = 1:samples
-    [~, c2(:, i)] = sim_meas_uncertainty(Problem,  init_dist, meas_rate);
+    [~, c2(:, i)] = sim_meas_uncertainty(Problem,  init_dist);
 end
 time = toc;
 
@@ -95,7 +94,7 @@ fprintf('Running N = %d simulations w/ code estimator...\n', samples);
 
 tic;
 parfor i = 1:samples
-    [~, c3(:, i)] = sim_meas_uncertainty(Problem,  init_dist, meas_rate);
+    [~, c3(:, i)] = sim_meas_uncertainty(Problem,  init_dist);
 end
 time = toc;
 
@@ -112,11 +111,9 @@ xlabel('Timestep');
 ylabel('Cummulative Cost');
 xlim([1 Parameters.Horizon + 1]);
 
-plot(1:size(c1, 1), mean(c1, 2), '-k');
-plot(1:size(c2, 1), mean(c2, 2), '-b');
-plot(1:size(c3, 1), mean(c3, 2), '-r');
-
-legend('Exact', 'Info State', 'Info Code');
+h1 = plot(1:size(c1, 1), mean(c1, 2), '-k');
+h2 = plot(1:size(c2, 1), mean(c2, 2), '-b');
+h3 = plot(1:size(c3, 1), mean(c3, 2), '-r');
 
 shadedErrorBar(1:size(c1, 1), mean(c1, 2), std(c1, 0, 2), 'lineprops', '-k');
 shadedErrorBar(1:size(c2, 1), mean(c2, 2), std(c2, 0, 2), 'lineprops', '-b');
@@ -129,6 +126,8 @@ plot(1:size(c3, 1), mean(c3, 2), '-r', 'LineWidth', 2);
 scatter(1:size(c1, 1), mean(c1, 2), 'k', 'filled');
 scatter(1:size(c2, 1), mean(c2, 2), 'b', 'filled');
 scatter(1:size(c3, 1), mean(c3, 2), 'r', 'filled');
+
+legend([h1 h2 h3], 'Exact', 'Info State', 'Info Code');
 
 %%
 
