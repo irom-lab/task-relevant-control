@@ -5,64 +5,54 @@ classdef (Abstract) ContControlProblem < ControlProblem
     properties
         Init
         Controller
+        NStates
+        NInputs
     end
     
     methods
-        function obj = ContControlProblem(Parameters, SolverName, SolverOptions, Init, Controller)
-            obj = obj@ControlProblem(Parameters, SolverName, SolverOptions);
+        function obj = ContControlProblem(Parameters, SolverOptions, Init, Controller)
+            obj = obj@ControlProblem(Parameters, SolverOptions);
             
-            if nargin > 3
+            if nargin > 2
                 obj.Init = Init;
             else
                 obj.Init = [];
             end
 
-            if nargin > 4
+            if nargin > 3
                 obj.Controller = Controller;
             else
                 obj.Controller = {};
             end
         end
-    end
-    
-    methods
-        function [traj, times] = simulate(Obj, Time, Init)
-            if nargin < 3
-                init = Obj.Init;
-            else
-                init = Init;
+        
+        function [traj, costs] = simulate(Obj, horizon)
+            if isfinite(Obj.Parameters.Horizon) && nargin < 2
+                horizon = Obj.Parameters.Horizon;
             end
             
-            options = odeset('Events', @(t, x) transconds(Obj, t, x));
+            traj = [Obj.Init zeros(Obj.NStates, horizon)];
+            costs = zeros(horizon + 1, 1);
             
-            autonomous = @(t, x) dynamics(Obj, t, x, Obj.Controller(t, x), options);
-            
-            t0 = 0;
-            traj = [];
-            times = [];
-            
-            while true
-                [segtimes, segtraj, eventtime, eventstate, eventidx] = ode45(autonomous, [t0, Time], init);
-                
-                if ~isempty(eventtime) && eventtime(1) < Time
-                    init = transfunction(Obj, eventstate(1, :), eventidx);
-                    times = [times; segtimes(segtimes < eventtime(1))];
-                    traj = [traj; segtraj(segtimes < eventtime(1))];
-                end
-                
-                if times(end) > Time
-                    traj = traj(times < Time);
-                    times = times(times < Time);
-                end
+            for t = 1:horizon
+                costs(t) = cost(Obj, traj(:, t), Obj.Controller(:, :, t) * traj(:, t));
+                traj(:, t + 1) = dynamics(Obj, traj(:, t), Obj.Controller(:, :, t) * traj(:, t));
             end
+            
+            costs(end) = terminal_cost(Obj, traj(:, end));
         end
     end
     
+    
     methods (Abstract)
-        dynamics
-        linearize
-        transconds
-        transfunction
+        next_state = dynamics(Obj, State, Input);
+        [A, B] = linearize(Obj, State, Input)
+        
+        c = cost(Obj, State, Input)
+        [Q, R] = quadraticize_cost(Obj, State, Input)
+        
+        c = terminal_cost(State);
+        Q = quadraticize_terminal_cost(Obj, State)
     end
 end
 
