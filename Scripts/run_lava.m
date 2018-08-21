@@ -107,27 +107,34 @@ figure;
 hold on;
 
 title(['\beta = ' num2str(SolverOptions.Tradeoff)]);
-xlabel('Timestep');
-ylabel('Cummulative Cost');
+xlabel('Timestep', 'FontSize', 15);
+ylabel('Cummulative Cost', 'FontSize', 15);
 xlim([1 Parameters.Horizon + 1]);
 
 h1 = plot(1:size(c1, 1), mean(c1, 2), '-k');
 h2 = plot(1:size(c2, 1), mean(c2, 2), '-b');
-h3 = plot(1:size(c3, 1), mean(c3, 2), '-r');
+%h3 = plot(1:size(c3, 1), mean(c3, 2), '-r');
 
 shadedErrorBar(1:size(c1, 1), mean(c1, 2), std(c1, 0, 2), 'lineprops', '-k');
 shadedErrorBar(1:size(c2, 1), mean(c2, 2), std(c2, 0, 2), 'lineprops', '-b');
-shadedErrorBar(1:size(c3, 1), mean(c3, 2), std(c3, 0, 2), 'lineprops', '-r');
+%shadedErrorBar(1:size(c3, 1), mean(c3, 2), std(c3, 0, 2), 'lineprops', '-r');
 
 plot(1:size(c1, 1), mean(c1, 2), '-k', 'LineWidth', 2);
 plot(1:size(c2, 1), mean(c2, 2), '-b', 'LineWidth', 2);
-plot(1:size(c3, 1), mean(c3, 2), '-r', 'LineWidth', 2);
+%plot(1:size(c3, 1), mean(c3, 2), '-r', 'LineWidth', 2);
 
 scatter(1:size(c1, 1), mean(c1, 2), 'k', 'filled');
 scatter(1:size(c2, 1), mean(c2, 2), 'b', 'filled');
-scatter(1:size(c3, 1), mean(c3, 2), 'r', 'filled');
+%scatter(1:size(c3, 1), mean(c3, 2), 'r', 'filled');
 
-legend([h1 h2 h3], 'Exact', 'Info State', 'Info Code');
+legend([h1 h2 h3], {'Full State Solution', 'Task Driven Solution'}, 'FontSize', 12);
+
+set(gcf,'Units','inches');
+screenposition = get(gcf,'Position');
+set(gcf,...
+    'PaperPosition',[0 0 screenposition(3:4)],...
+    'PaperSize',[screenposition(3:4)]);
+print -dpdf -painters fig
 
 %%
 
