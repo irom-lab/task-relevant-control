@@ -39,9 +39,9 @@ classdef (Abstract) DiscControlProblem < ControlProblem
     end
     
     methods (Abstract)
-        costs
-        transitions
-        sensor
+        [Costs, TerminalCosts] = costs(Obj)
+        [Transitions] = transitions(Obj)
+        [OutputGivenState] = sensor(Obj)
     end
 end
 
