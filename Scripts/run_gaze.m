@@ -155,11 +155,12 @@ for i = 1:size(Problem.Transitions, 1)
 end
 
 [angle, inds] = sort(angle);
+unsorted_ml_code = ml_code;
 ml_code = ml_code(inds);
 
-relabeling = zeros(max(ml_code));
+relabeling = zeros(max(ml_code), 1);
 code_count = 1;
-relabeled = false(max(ml_code));
+relabeled = false(max(ml_code), 1);
 
 for i = 1:length(angle)
     if ~relabeled(ml_code(i))
@@ -175,10 +176,16 @@ figure;
 hold on;
 
 plot(cos(linspace(0, pi)), sin(linspace(0, pi)), 'k', 'LineWidth', 2);
+right_half = 0;
+left_half = 0;
 
 for i = 1:SolverOptions.NumCodewords
     r = 1 + 0.1 * i;
     scatter(r * cos(angle(ml_code == i)), r * sin(angle(ml_code == i)), 'filled');
+    
+    unique_angles = unique(angle(ml_code == i));
+    right_half = right_half + sum(unique_angles <= pi / 2);
+    left_half = left_half + sum(unique_angles > pi / 2);
 end
 
 mark_angles = deg2rad(0:15:180);
