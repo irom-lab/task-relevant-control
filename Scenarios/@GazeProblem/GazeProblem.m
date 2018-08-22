@@ -26,7 +26,7 @@ classdef GazeProblem < DiscControlProblem
                     for ballvel = 1:2
                         if ballx ~= x
                             state_ind = sub2ind([runway runway height 2], x, ballx, 1, ballvel);
-                            terminal_costs(state_ind) = 10;
+                            terminal_costs(state_ind) = 30;
                         end
                     end
                 end

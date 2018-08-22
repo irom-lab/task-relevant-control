@@ -13,7 +13,7 @@ Parameters.Height = 5;
 Parameters.Horizon = 5;
 Parameters.MeasurementRate = 0.4;
 
-SolverOptions.Tradeoff = 40;
+SolverOptions.Tradeoff = 20;
 SolverOptions.Iters = 10;
 SolverOptions.NumCodewords = 8;
 SolverOptions.FixedCodeMap = true;

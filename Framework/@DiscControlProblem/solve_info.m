@@ -68,8 +68,8 @@ else
             % Code given state
             for i = 1:n
                 for j = 1:p
-                    exponent = tradeoff * (values(:, t + 1)' * (squeeze(Obj.Transitions(:, i, :)) * input_given_code(:, j, t)) ...
-                        - Obj.Costs(i, :) * input_given_code(:, j, t));
+                    exponent = -tradeoff * (values(:, t + 1)' * (squeeze(Obj.Transitions(:, i, :)) * input_given_code(:, j, t)) ...
+                        + Obj.Costs(i, :) * input_given_code(:, j, t));
                     
                     if fixed_code_map
                         code_given_state(j, i) = code_dist(j) * exp(exponent);
