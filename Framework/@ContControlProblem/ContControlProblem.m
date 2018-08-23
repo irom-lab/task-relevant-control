@@ -41,11 +41,13 @@ classdef (Abstract) ContControlProblem < ControlProblem
             
             costs(end) = terminal_cost(Obj, traj(:, end));
         end
+        
+        [ traj, cum_cost ] = sim_meas_uncertainty(Obj, init, horizon)
     end
     
     
     methods (Abstract)
-        next_state = dynamics(Obj, State, Input);
+        next_state = dynamics(Obj, State, Input)
         [A, B] = linearize(Obj, State, Input)
         
         c = cost(Obj, State, Input)

@@ -32,6 +32,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     m = Obj.Parameters.NInputs;
     p = Obj.SolverOptions.NumCodewords;
     horizon = Obj.Parameters.Horizon;
+    tradeoff = Obj.SolverOptions.Tradeoff
 
     A = zeros(n, n, horizon);
     B = zeros(n, m, horizon);
@@ -40,6 +41,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     K = rand(m, p, horizon);
     Sigma_eta = rand(p, p, horizon);
     P = zeros(n, n, horizon + 1);
+    b = zeros(n, horizon + 1);
 
     states = Obj.Init;
     inputs = rand(m, horizon);
@@ -51,12 +53,13 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
         % Forward equations
         for t = 1:horizon
             [A(:, :, t), B(:, :, t)] = linearize(Obj, states(t).mean, inputs(:, t));
+            inputs(:, t) = K(:, :, t) * C(:, :, t) * states(t).mean;
 
             states(t + 1).mean = dynamics(Obj, states(t).mean, inputs(:, t));
             states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcNoise;
 
             obj_hist(iter) = obj_hist(iter) + cost(Obj, states(t).mean, inputs(:, t)) + ...
-                mutual_info(states(t).mean, states(t).cov, C(:, :, t) * states(t).mean, C(:, :, t) * states(t).cov * C(:, :, t));
+                (1 / tradeoff) * mutual_info(states(t).mean, states(t).cov, C(:, :, t) * states(t).mean, C(:, :, t) * states(t).cov * C(:, :, t)');
         end
 
         obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(end).mean);
@@ -71,14 +74,30 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
         % Backward Equations
         P(:, :, end) = quadraticize_terminal_cost(Obj, states(end).mean);
-
+        b(:, :, end) = -P(:, :, end) * Obj.Parameters.Goals(:, end);
+        
         for t = horizon:-1:1
-            C(:, :, t) = ;
-            d(:, :, t) = ;
-            Sigma_eta(:, :, t) = ;
+            [Q, R] = quadraticize_cost(Obj, states(t).mean, inputs(:, t));
+            
+            Sigma_eta(:, :, t) = inv(inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) ...
+                - tradeoff * K(:, :, t)' * (B(:, :, t)' * P(:, :, t) * B(:, :, t) + R) * K(:, :, t));
+            
+            C(:, :, t) = (1/2) * inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)'* B(:, :, t) * P(:, :, t + 1) * A(:, :, t) ...
+                - inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * d(:, t));
+            
+            d(:, :, t) = (1/2) * inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)' * B(:, :, t)' * b(:, t + 1) ...
+                + inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * d(:, t));
 
-            K = solve_csp();
-            P = ;
+            K(:, :, t) = solve_csp();
+            
+            
+            G = C(:, :, t)' * inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * C(:, :, t);
+            
+            P(:, :, t) = Q + (1 / tradeoff) * G + C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * C(:, :, t) ...
+                + (A(:, :, t) + B(:, :, t) * C(:, :, t))' * P(:, :, t + 1) * (A(:, :, t) + B(:, :, t) * C(:, :, t));
+            
+            b(:, t) = A(:, :, t)' * P(:, :, t) * B(:, :, t) * K(:, :, t) * d(:, :, t) - Q * Obj.Parameters.Goals(:, t) ...
+                - G * state(t).mean - C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * d(:, t) + b(:, t + 1);
         end
     end
 
@@ -92,7 +111,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
 
         obj_hist(iter) = obj_hist(iter) + cost(Obj, states(t).mean, inputs(:, t)) + ...
-            mutual_info(states(t).mean, states(t).cov, C(:, :, t) * states(t).mean, C(:, :, t) * states(t).cov * C(:, :, t));
+            beta * mutual_info(states(t).mean, states(t).cov, C(:, :, t) * states(t).mean, C(:, :, t) * states(t).cov * C(:, :, t));
     end
 
     obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(end).mean);
@@ -107,4 +126,13 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 end
 
 function K = solve_csp()
+end
+
+function mi = mutual_info(mean1, mean2, full_cov)
+    n = length(mean1);
+    
+    cov1 = full_cov(1:n, 1:n);
+    h1 = (1 / 2) * log(((2 * pi * exp(1))^n) * det(cov1));
+    
+    mi = (1 / 2) * log(det(full_cov(1:n, 1:n)) * det(full_cov((n + 1):end, (n + 1):end)) / det(full_cov));
 end
