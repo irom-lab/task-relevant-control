@@ -32,7 +32,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     m = Obj.Parameters.NInputs;
     p = Obj.SolverOptions.NumCodewords;
     horizon = Obj.Parameters.Horizon;
-    tradeoff = Obj.SolverOptions.Tradeoff
+    tradeoff = Obj.SolverOptions.Tradeoff;
 
     A = zeros(n, n, horizon);
     B = zeros(n, m, horizon);
@@ -52,8 +52,8 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     for iter = 1:Obj.SolverOptions.Iters
         % Forward equations
         for t = 1:horizon
-            [A(:, :, t), B(:, :, t)] = linearize(Obj, states(t).mean, inputs(:, t));
             inputs(:, t) = K(:, :, t) * C(:, :, t) * states(t).mean;
+            [A(:, :, t), B(:, :, t)] = linearize(Obj, states(t).mean, inputs(:, t));
 
             states(t + 1).mean = dynamics(Obj, states(t).mean, inputs(:, t));
             states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcNoise;
@@ -90,7 +90,6 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
             K(:, :, t) = solve_csp();
             
-            
             G = C(:, :, t)' * inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * C(:, :, t);
             
             P(:, :, t) = Q + (1 / tradeoff) * G + C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * C(:, :, t) ...
@@ -125,14 +124,47 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     end
 end
 
-function K = solve_csp()
+function K_val = solve_csp(state, A, B, C, d, Sigma_eta, P, b)
+    n = size(A, 1);
+    m = size(B, 2);
+    p = size(C, 2);
+    
+    x_bar = state.mean;
+    Sigma_x = state.cov;
+    
+    x_tilde_bar = C * x_bar + d;
+    Sigma_x_tilde = C * Sigma_x * C' + Sigma_eta;
+    
+    K = sdpvar(m, p);
+    
+    constraint = [2 * R * K * x_tilde_bar * x_tilde_bar' + B' * P * A * x_bar * x_tilde_bar' ...
+        + 2 * B' * P * B * K * x_tilde_bar * x_tilde_bar' + 2 * B' P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar'];
+    
+    options = sdpsettings('verbose', true);
+    
+    sol = optimize(constraints, 0, options);
+    
+    if sol.problem == 0
+        % Extract and display value
+        K_val = value(K);
+    else
+        disp('Error satisfying linear controller constraint!!!');
+        sol.info
+        yalmiperror(sol.problem)
+    end
+    
 end
 
-function mi = mutual_info(mean1, mean2, full_cov)
-    n = length(mean1);
+function mi = mutual_info(state_cov, C, Sigma_eta)
+    n = size(C, 2);
+    p = size(C, 1);
     
-    cov1 = full_cov(1:n, 1:n);
-    h1 = (1 / 2) * log(((2 * pi * exp(1))^n) * det(cov1));
+    Sigma_joint = [state_cov, state_cov * C';
+                   C * state_cov, C * state_cov * C' + Sigma_eta];
     
-    mi = (1 / 2) * log(det(full_cov(1:n, 1:n)) * det(full_cov((n + 1):end, (n + 1):end)) / det(full_cov));
+    Hx = 0.5 * log(det(state_cov) * (2 * pi * exp(1)) ^ n);
+    Hx_tilde = 0.5 * log(det(C * state_cov C' + Sigma_eta) * (2 * pi * exp(1)) ^ p);
+    Hjoint = 0.5 * log(det(Sigma_joint) * (2 * pi * exp(1)) ^ (n + p)));
+    
+    mi = Hx - Hjoint + Hx_tilde;
 end
