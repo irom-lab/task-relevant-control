@@ -4,10 +4,13 @@ clc;
 
 %%
 
+rng(0);
+
 n = 2;
 m = 2;
 
-Init = 5 * rand(n, 1);
+Init.mean = [5; 3];
+Init.cov = 0.1 * eye(2);
 
 Parameters.A = rand(n, n);
 Parameters.B = rand(n, m);
@@ -19,14 +22,19 @@ Parameters.ProcCov = zeros(2);
 Parameters.NStates = 2;
 Parameters.NInputs = 2;
 
-Parameters.Horizon = 30;
+Parameters.Horizon = 10;
+Parameters.Goals = zeros(Parameters.NStates, Parameters.Horizon);
 
 SolverOptions.Iters = 5;
+SolverOptions.Tradeoff = 1;
+SolverOptions.NumCodewords = 2;
+SolverOptions.FixedCodeMap = false;
+
 Problem = LTIProblem(Parameters, SolverOptions, Init);
 
 %%
 
-[controller, obj_val, obj_hist] = solve_exact(Problem);
+[controller, obj_val, obj_hist] = solve_info(Problem);
 
 %%
 

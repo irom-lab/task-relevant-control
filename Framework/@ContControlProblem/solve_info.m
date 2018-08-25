@@ -56,10 +56,10 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
             [A(:, :, t), B(:, :, t)] = linearize(Obj, states(t).mean, inputs(:, t));
 
             states(t + 1).mean = dynamics(Obj, states(t).mean, inputs(:, t));
-            states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcNoise;
+            states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcCov;
 
             obj_hist(iter) = obj_hist(iter) + cost(Obj, states(t).mean, inputs(:, t)) + ...
-                (1 / tradeoff) * mutual_info(states(t).mean, states(t).cov, C(:, :, t) * states(t).mean, C(:, :, t) * states(t).cov * C(:, :, t)');
+                (1 / tradeoff) * mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
         end
 
         obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(end).mean);
@@ -74,29 +74,29 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
         % Backward Equations
         P(:, :, end) = quadraticize_terminal_cost(Obj, states(end).mean);
-        b(:, :, end) = -P(:, :, end) * Obj.Parameters.Goals(:, end);
+        b(:, end) = -P(:, :, end) * Obj.Parameters.Goals(:, end);
         
         for t = horizon:-1:1
             [Q, R] = quadraticize_cost(Obj, states(t).mean, inputs(:, t));
             
-            Sigma_eta(:, :, t) = inv(inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) ...
-                - tradeoff * K(:, :, t)' * (B(:, :, t)' * P(:, :, t) * B(:, :, t) + R) * K(:, :, t));
+            Sigma_eta(:, :, t) = inv(tradeoff * K(:, :, t)' * (B(:, :, t)' * P(:, :, t + 1) * B(:, :, t) + R) * K(:, :, t) ...
+                - inv(C(:, :, t) * states(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)));
             
-            C(:, :, t) = (1/2) * inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)'* B(:, :, t) * P(:, :, t + 1) * A(:, :, t) ...
-                - inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * d(:, t));
+            F = inv(C(:, :, t) * states(t).cov * C(:, :, t)' + Sigma_eta(:, :, t));
+            G = C(:, :, t)' * F * C(:, :, t);
             
-            d(:, :, t) = (1/2) * inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)' * B(:, :, t)' * b(:, t + 1) ...
-                + inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * d(:, t));
+            C(:, :, t) = inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)'* B(:, :, t)' * P(:, :, t + 1) * A(:, :, t) + F * C(:, :, t));
+            
+            d(:, t) = inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)' * B(:, :, t)' * b(:, t + 1) + F * d(:, t));
 
-            K(:, :, t) = solve_csp();
-            
-            G = C(:, :, t)' * inv(C(:, :, t) * state(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * C(:, :, t);
+            K(:, :, t) = solve_csp(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), ...
+                Sigma_eta(:, :, t), R, P(:, :, t + 1), b(:, t + 1));
             
             P(:, :, t) = Q + (1 / tradeoff) * G + C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * C(:, :, t) ...
                 + (A(:, :, t) + B(:, :, t) * C(:, :, t))' * P(:, :, t + 1) * (A(:, :, t) + B(:, :, t) * C(:, :, t));
             
-            b(:, t) = A(:, :, t)' * P(:, :, t) * B(:, :, t) * K(:, :, t) * d(:, :, t) - Q * Obj.Parameters.Goals(:, t) ...
-                - G * state(t).mean - C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * d(:, t) + b(:, t + 1);
+            b(:, t) = A(:, :, t)' * P(:, :, t + 1) * B(:, :, t) * K(:, :, t) * d(:, t) - Q * Obj.Parameters.Goals(:, t) ...
+                - G * states(t).mean - C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * d(:, t) + b(:, t + 1);
         end
     end
 
@@ -110,7 +110,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
 
         obj_hist(iter) = obj_hist(iter) + cost(Obj, states(t).mean, inputs(:, t)) + ...
-            beta * mutual_info(states(t).mean, states(t).cov, C(:, :, t) * states(t).mean, C(:, :, t) * states(t).cov * C(:, :, t));
+            (1 / tradeoff) * mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
     end
 
     obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(end).mean);
@@ -124,7 +124,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     end
 end
 
-function K_val = solve_csp(state, A, B, C, d, Sigma_eta, P, b)
+function K_val = solve_csp(state, A, B, C, d, Sigma_eta, R, P, b)
     n = size(A, 1);
     m = size(B, 2);
     p = size(C, 2);
@@ -135,22 +135,22 @@ function K_val = solve_csp(state, A, B, C, d, Sigma_eta, P, b)
     x_tilde_bar = C * x_bar + d;
     Sigma_x_tilde = C * Sigma_x * C' + Sigma_eta;
     
-    K = sdpvar(m, p);
+    K = sdpvar(m, p, 'full');
     
     constraint = [2 * R * K * x_tilde_bar * x_tilde_bar' + B' * P * A * x_bar * x_tilde_bar' ...
-        + 2 * B' * P * B * K * x_tilde_bar * x_tilde_bar' + 2 * B' P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar'];
+        + 2 * B' * P * B * K * x_tilde_bar * x_tilde_bar' + 2 * B' * P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar' == 0];
     
     options = sdpsettings('verbose', true);
     
-    sol = optimize(constraints, 0, options);
+    sol = optimize(constraint, 0, options);
     
     if sol.problem == 0
         % Extract and display value
         K_val = value(K);
     else
-        disp('Error satisfying linear controller constraint!!!');
         sol.info
         yalmiperror(sol.problem)
+        error('Error satisfying linear controller constraint!!!');
     end
     
 end
@@ -163,8 +163,8 @@ function mi = mutual_info(state_cov, C, Sigma_eta)
                    C * state_cov, C * state_cov * C' + Sigma_eta];
     
     Hx = 0.5 * log(det(state_cov) * (2 * pi * exp(1)) ^ n);
-    Hx_tilde = 0.5 * log(det(C * state_cov C' + Sigma_eta) * (2 * pi * exp(1)) ^ p);
-    Hjoint = 0.5 * log(det(Sigma_joint) * (2 * pi * exp(1)) ^ (n + p)));
+    Hx_tilde = 0.5 * log(det(C * state_cov * C' + Sigma_eta) * (2 * pi * exp(1)) ^ p);
+    Hjoint = 0.5 * log(det(Sigma_joint) * (2 * pi * exp(1)) ^ (n + p));
     
     mi = Hx - Hjoint + Hx_tilde;
 end
