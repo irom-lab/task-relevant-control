@@ -79,24 +79,14 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
         for t = horizon:-1:1
             [Q, R] = quadraticize_cost(Obj, states(t).mean, inputs(:, t));
             
-            Sigma_eta(:, :, t) = inv(tradeoff * K(:, :, t)' * (B(:, :, t)' * P(:, :, t + 1) * B(:, :, t) + R) * K(:, :, t) ...
-                - inv(C(:, :, t) * states(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)));
-            
-            F = inv(C(:, :, t) * states(t).cov * C(:, :, t)' + Sigma_eta(:, :, t));
-            G = C(:, :, t)' * F * C(:, :, t);
-            
-            C(:, :, t) = inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)'* B(:, :, t)' * P(:, :, t + 1) * A(:, :, t) + F * C(:, :, t));
-            
-            d(:, t) = inv(Sigma_eta(:, :, t)) * (tradeoff * K(:, :, t)' * B(:, :, t)' * b(:, t + 1) + F * d(:, t));
+            [C(:, :, t), d(:, t), Sigma_eta(:, :, t)] = solve_code_given_state(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), ...
+                Sigma_eta(:, :, t), K(:, :, t), R, P(:, :, t + 1), b(:, t + 1), tradeoff);
 
-            K(:, :, t) = solve_csp(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), ...
+            K(:, :, t) = solve_input_given_code(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), ...
                 Sigma_eta(:, :, t), R, P(:, :, t + 1), b(:, t + 1));
             
-            P(:, :, t) = Q + (1 / tradeoff) * G + C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * C(:, :, t) ...
-                + (A(:, :, t) + B(:, :, t) * C(:, :, t))' * P(:, :, t + 1) * (A(:, :, t) + B(:, :, t) * C(:, :, t));
-            
-            b(:, t) = A(:, :, t)' * P(:, :, t + 1) * B(:, :, t) * K(:, :, t) * d(:, t) - Q * Obj.Parameters.Goals(:, t) ...
-                - G * states(t).mean - C(:, :, t)' * K(:, :, t)' * R * K(:, :, t) * d(:, t) + b(:, t + 1);
+            [P, b] = solve_value_function(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), Sigma_eta(:, :, t), ...
+                Q(:, :, t), R(:, :, t), g(:, t), P(:, t + 1), b(:, t + 1));
         end
     end
 
@@ -124,7 +114,19 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     end
 end
 
-function K_val = solve_csp(state, A, B, C, d, Sigma_eta, R, P, b)
+function [C, d, Sigma_eta] = solve_code_given_state(state, A, B, C, d, Sigma_eta, K, R, P, b, tradeoff)
+    Sigma_eta = inv(tradeoff * K' * (B' * P * B + R) * K ... 
+        - inv(C * state.cov * C' + Sigma_eta));
+
+    F = inv(C * state.cov * C' + Sigma_eta);
+    G = C' * F * C;
+
+    C = inv(Sigma_eta) * (tradeoff * K'* B' * P * A + F * C);
+
+    d = inv(Sigma_eta) * (tradeoff * K' * B' * b + F * d);
+end
+
+function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
     n = size(A, 1);
     m = size(B, 2);
     p = size(C, 2);
@@ -137,8 +139,11 @@ function K_val = solve_csp(state, A, B, C, d, Sigma_eta, R, P, b)
     
     K = sdpvar(m, p, 'full');
     
-    constraint = [2 * R * K * x_tilde_bar * x_tilde_bar' + B' * P * A * x_bar * x_tilde_bar' ...
-        + 2 * B' * P * B * K * x_tilde_bar * x_tilde_bar' + 2 * B' * P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar' == 0];
+    constraint = [R * K * x_tilde_bar * x_tilde_bar' + 0.5 * Sigma_x_tilde * K' * R + 0.5 * R * K' * Sigma_x_tilde ...
+        + B' * P * A * x_bar * x_bar' * C' + B' * P * A' * Sigma_x * C' ...
+        + B' * P * A * x_bar * d' * C' ...
+        + B' * P * B * K * x_tilde_bar * x_tilde_bar' + 0.5 * Sigma_x_tilde * K' * B' * P * B + 0.5 * B' * P * B * K' * Sigma_x_tilde ...
+        + B' * b * x_tilde_bar' == 0];
     
     options = sdpsettings('verbose', true);
     
@@ -153,6 +158,15 @@ function K_val = solve_csp(state, A, B, C, d, Sigma_eta, R, P, b)
         error('Error satisfying linear controller constraint!!!');
     end
     
+end
+
+function [P, b] = solve_value_function(state, A, B, C, d, Sigma_eta, Q, R, g, P, b)
+    F = inv(C * states.cov * C' + Sigma_eta);
+    G = C' * F * C;
+
+    P = Q + (1 / tradeoff) * G + C' * K' * R * K * C + (A + B * C)' * P * (A + B * C);
+            
+    b = A' * P * B * K * d - Q * g - G * state.mean - C' * K' * R * K * d + b;
 end
 
 function mi = mutual_info(state_cov, C, Sigma_eta)
