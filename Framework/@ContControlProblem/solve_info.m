@@ -116,10 +116,9 @@ end
 
 function [C, d, Sigma_eta] = solve_code_given_state(state, A, B, C, d, Sigma_eta, K, R, P, b, tradeoff)
     Sigma_eta = inv(tradeoff * K' * (B' * P * B + R) * K ... 
-       - inv(C * state.cov * C' + Sigma_eta));
+       + inv(C * state.cov * C' + Sigma_eta));
 
     F = inv(C * state.cov * C' + Sigma_eta);
-    G = C' * F * C;
 
     C = inv(Sigma_eta) * (tradeoff * K'* B' * P * A + F * C);
 
@@ -145,14 +144,13 @@ function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
         + B' * P * B * K * x_tilde_bar * x_tilde_bar' + 0.5 * Sigma_x_tilde * K' * B' * P * B + 0.5 * B' * P * B * K' * Sigma_x_tilde ...
         + B' * b * x_tilde_bar' == 0];
     
-    options = sdpsettings('verbose', true);
+    options = sdpsettings('solver', 'sedumi', 'verbose', true, 'debug', true);
     
-    sol = optimize(constraint, 0, options);
+    sol = optimize(constraint, norm(K), options);
     
     if sol.problem == 0
         % Extract and display value
         K_val = value(K);
-        max(abs(eig(A + B * value(K))))
     else
         sol.info
         yalmiperror(sol.problem)
