@@ -42,6 +42,8 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     Sigma_eta = rand(p, p, horizon);
     P = zeros(n, n, horizon + 1);
     b = zeros(n, horizon + 1);
+    
+    g = Obj.Parameters.Goals;
 
     states = Obj.Init;
     inputs = rand(m, horizon);
@@ -85,8 +87,8 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
             K(:, :, t) = solve_input_given_code(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), ...
                 Sigma_eta(:, :, t), R, P(:, :, t + 1), b(:, t + 1));
             
-            [P, b] = solve_value_function(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), Sigma_eta(:, :, t), ...
-                Q(:, :, t), R(:, :, t), g(:, t), P(:, t + 1), b(:, t + 1));
+            [P(:, :, t), b(:, :, t)] = solve_value_function(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), Sigma_eta(:, :, t), ...
+                K(:, :, t), Q, R, g(:, t), P(:, t + 1), b(:, t + 1), tradeoff);
         end
     end
 
@@ -160,8 +162,8 @@ function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
     
 end
 
-function [P, b] = solve_value_function(state, A, B, C, d, Sigma_eta, Q, R, g, P, b)
-    F = inv(C * states.cov * C' + Sigma_eta);
+function [P, b] = solve_value_function(state, A, B, C, d, Sigma_eta, K, Q, R, g, P, b, tradeoff)
+    F = inv(C * state.cov * C' + Sigma_eta);
     G = C' * F * C;
 
     P = Q + (1 / tradeoff) * G + C' * K' * R * K * C + (A + B * C)' * P * (A + B * C);
