@@ -87,8 +87,8 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
             K(:, :, t) = solve_input_given_code(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), ...
                 Sigma_eta(:, :, t), R, P(:, :, t + 1), b(:, t + 1));
             
-            [P(:, :, t), b(:, :, t)] = solve_value_function(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), Sigma_eta(:, :, t), ...
-                K(:, :, t), Q, R, g(:, t), P(:, t + 1), b(:, t + 1), tradeoff);
+            [P(:, :, t), b(:, t)] = solve_value_function(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), Sigma_eta(:, :, t), ...
+                K(:, :, t), Q, R, g(:, t), P(:, :, t + 1), b(:, t + 1), tradeoff);
         end
     end
 
@@ -98,8 +98,6 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
         states(t + 1).mean = dynamics(Obj, states(t).mean, inputs(:, t));
         states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcNoise;
-
-
 
         obj_hist(iter) = obj_hist(iter) + cost(Obj, states(t).mean, inputs(:, t)) + ...
             (1 / tradeoff) * mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
@@ -118,7 +116,7 @@ end
 
 function [C, d, Sigma_eta] = solve_code_given_state(state, A, B, C, d, Sigma_eta, K, R, P, b, tradeoff)
     Sigma_eta = inv(tradeoff * K' * (B' * P * B + R) * K ... 
-        - inv(C * state.cov * C' + Sigma_eta));
+       - inv(C * state.cov * C' + Sigma_eta));
 
     F = inv(C * state.cov * C' + Sigma_eta);
     G = C' * F * C;
@@ -154,6 +152,7 @@ function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
     if sol.problem == 0
         % Extract and display value
         K_val = value(K);
+        max(abs(eig(A + B * value(K))))
     else
         sol.info
         yalmiperror(sol.problem)
@@ -166,9 +165,9 @@ function [P, b] = solve_value_function(state, A, B, C, d, Sigma_eta, K, Q, R, g,
     F = inv(C * state.cov * C' + Sigma_eta);
     G = C' * F * C;
 
-    P = Q + (1 / tradeoff) * G + C' * K' * R * K * C + (A + B * C)' * P * (A + B * C);
+    P = Q + (1 / tradeoff) * G + C' * K' * R * K * C + (A + B * K * C)' * P * (A + B * K * C);
             
-    b = A' * P * B * K * d - Q * g - G * state.mean - C' * K' * R * K * d + b;
+    b = A' * P * B * K * d - Q * g - (1 / tradeoff) * G * state.mean - C' * K' * R * K * d + b;
 end
 
 function mi = mutual_info(state_cov, C, Sigma_eta)
