@@ -29,18 +29,24 @@ function [best_controller, obj_val, obj_hist] = solve_exact_horizon(Obj, horizon
     n = Obj.NStates;
     m = Obj.NInputs;
     
-    controller = zeros(m, n, horizon);
+    K = zeros(m, n, horizon);
+    d = zeros(m, horizon);
+    
+    P = zeros(n, n, horizon + 1);
+    b = zeros(n, horizon + 1);
+    g = Obj.Parameters.Goals;
+    
+    states = [Obj.Init zeros(n, horizon)];
+    inputs = zeros(m, horizon);
     
     obj_hist = zeros(Obj.SolverOptions.Iters + 1, 1);
     obj_val = inf;
     
-    for iter = 1:Obj.SolverOptions.Iters
-        states = [Obj.Init zeros(n, horizon)];
-        inputs = zeros(m, horizon);
+    for iter = 1:Obj.SolverOptions.Iters        
         
         % Forward equations
         for t = 1:horizon
-            inputs(:, t) = controller(:, :, t) * states(:, t);
+            inputs(:, t) = K(:, :, t) * states(:, t) + d(:, t);
             states(:, t + 1) = dynamics(Obj, states(:, t), inputs(:, t));
             obj_hist(iter) = obj_hist(iter) + cost(Obj, states(:, t), inputs(:, t));
         end
@@ -48,27 +54,34 @@ function [best_controller, obj_val, obj_hist] = solve_exact_horizon(Obj, horizon
         obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(:, end));
         
         if obj_hist(iter) < obj_val
-            best_controller = controller;
+            best_controller.K = K;
+            best_controller.d = d;
+            
             obj_val = obj_hist(iter);
         end
         
         % Backward equations
-        P = quadraticize_terminal_cost(Obj, states(:, end));
+        P(:, :, end) = quadraticize_terminal_cost(Obj, states(:, end));
+        b(:, :, end) = -P(:, :, end) * g(:, end);
         
         for t = horizon:-1:1
             [A, B] = linearize(Obj, states(:, t), inputs(:, t));
             [Q, R] = quadraticize_cost(Obj, states(:, t), inputs(:, t)); 
             
-            P = Q + A' * P * A - A' * P * B * inv(R + B' * P * B) * B' * P * A;
-            controller(:, :, t) = -inv(R + B' * P * B) * B' * P * A;
+            K(:, :, t) = -inv(R + B' * P(:, :, t + 1) * B) * B' * P(:, :, t + 1) * A;
+            d(:, t) = -inv(R + B' * P(:, :, t + 1) * B) * B' * b(:, :, t + 1);
+            
+            P(:, :, t) = Q + A' * P * A - A' * P * B * inv(R + B' * P * B) * B' * P * A;
+            b(:, t) = -Q * g(:, t) + K(:, :, t)' * R * d(:, t) + ...
+                (A + B * K(:, :, t))' * P(:, :, t) * B * d(:, t) + (A + B * K(:, :, t))' * b(:, t);
         end
     end
     
     % Final forward pass
     for t = 1:horizon
-        inputs(:, t) = controller(:, :, t) * states(:, t);
+        inputs(:, t) = K(:, :, t) * states(:, t) + d(:, t);
         states(:, t + 1) = dynamics(Obj, states(:, t), inputs(:, t));
-        obj_hist(end) = obj_hist(end) + cost(Obj, states(:, t), inputs(:, t));
+        obj_hist(iter) = obj_hist(iter) + cost(Obj, states(:, t), inputs(:, t));
     end
         
     obj_hist(end) = obj_hist(end) + terminal_cost(Obj, states(:, end));
