@@ -17,6 +17,8 @@ else
     end
 end
 
+Obj.Controller = controller;
+
 end
 
 function [controller, obj_val, obj_hist] = solve_info_inf(Obj)
@@ -39,7 +41,12 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     C = zeros(p, n, horizon);
     d = rand(p, horizon);
     K = rand(m, p, horizon);
-    Sigma_eta = rand(p, p, horizon);
+    
+    for t = 1:horizon
+        Sigma_eta(:, :, t) = rand(p, p);
+        Sigma_eta(:, :, t) = (Sigma_eta(:, :, t) * Sigma_eta(:, :, t)');
+    end
+    
     P = zeros(n, n, horizon + 1);
     b = zeros(n, horizon + 1);
     
@@ -91,22 +98,24 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
                 K(:, :, t), Q, R, g(:, t), P(:, :, t + 1), b(:, t + 1), tradeoff);
         end
     end
+    
+    obj_hist(end + 1) = 0;
 
     % Forward equations
     for t = 1:horizon
         [A(:, :, t), B(:, :, t)] = linearize(Obj, states(t).mean, inputs(:, t));
 
         states(t + 1).mean = dynamics(Obj, states(t).mean, inputs(:, t));
-        states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcNoise;
+        states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcCov;
 
-        obj_hist(iter) = obj_hist(iter) + cost(Obj, states(t).mean, inputs(:, t)) + ...
+        obj_hist(end) = obj_hist(end) + cost(Obj, states(t).mean, inputs(:, t)) + ...
             (1 / tradeoff) * mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
     end
 
-    obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(end).mean);
+    obj_hist(end) = obj_hist(end) + terminal_cost(Obj, states(end).mean);
 
-    if obj_hist(iter) < obj_val
-        obj_val = obj_hist(iter);
+    if obj_hist(end) < obj_val
+        obj_val = obj_hist(end + 1);
         controller.C = C;
         controller.d = d;
         controller.K = K;
@@ -120,9 +129,9 @@ function [C, d, Sigma_eta] = solve_code_given_state(state, A, B, C, d, Sigma_eta
 
     F = inv(C * state.cov * C' + Sigma_eta);
 
-    C = inv(Sigma_eta) * (tradeoff * K'* B' * P * A + F * C);
+    C = tradeoff * Sigma_eta * K' * B' * P * A;
 
-    d = inv(Sigma_eta) * (tradeoff * K' * B' * b + F * d);
+    d = Sigma_eta * (tradeoff * K' * B' * b + F * (C * state.mean + d));
 end
 
 function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
@@ -138,15 +147,13 @@ function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
     
     K = sdpvar(m, p, 'full');
     
-    constraint = [R * K * x_tilde_bar * x_tilde_bar' + 0.5 * Sigma_x_tilde * K' * R + 0.5 * R * K' * Sigma_x_tilde ...
-        + B' * P * A * x_bar * x_bar' * C' + B' * P * A' * Sigma_x * C' ...
-        + B' * P * A * x_bar * d' * C' ...
-        + B' * P * B * K * x_tilde_bar * x_tilde_bar' + 0.5 * Sigma_x_tilde * K' * B' * P * B + 0.5 * B' * P * B * K' * Sigma_x_tilde ...
-        + B' * b * x_tilde_bar' == 0];
+    constraint = [R * K * x_tilde_bar * x_tilde_bar' + R * K * Sigma_x_tilde ...
+        + B' * P * A * x_bar * x_tilde_bar' + B' * P * B * K * x_tilde_bar * x_tilde_bar' ...
+        + B' * P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar' == 0];
     
-    options = sdpsettings('solver', 'sedumi', 'verbose', true, 'debug', true);
+    options = sdpsettings('verbose', false, 'debug', true);
     
-    sol = optimize(constraint, norm(K), options);
+    sol = optimize(constraint, 0, options);
     
     if sol.problem == 0
         % Extract and display value
