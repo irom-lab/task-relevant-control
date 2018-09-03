@@ -1,11 +1,15 @@
-function next_stance = slip_return_map(Stance, Parameters)
+function next_state = slip_return_map(State, Input, Parameters)
 %SIM_HOP Simulates one hop of the SLIP model.
 %   Init is a state vector in stance coordinates [r; theta; rdot; thetadot]
+%   State is [x; r; rdot; theta]
+%   Input is theta_td
 
 options = odeset('Events', @(t, x) stance_events(t, x, Parameters));
 
+stance = [State(3); Input; State(4:5)];
+
 [t, traj] = ode45(@(t, x) stance_dynamics(t, x, Parameters), ...
-    [0, Parameters.TMax], Stance, options);
+    [0, Parameters.TMax], stance, options);
 
 final_stance_state = traj(end, :)';
 init_flight_state = stance_to_flight(final_stance_state, Parameters);
@@ -17,6 +21,8 @@ options = odeset('Events', @(t, x) flight_events(t, x, Parameters));
 
 final_flight_state = traj(end, :)';
 next_stance = flight_to_stance(final_flight_state, Parameters);
+
+next_state = [State(1) + final_flight_state(1); next_stance(1); next_stance(3:4)];
 
 end
 
