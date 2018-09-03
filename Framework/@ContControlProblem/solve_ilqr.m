@@ -16,20 +16,21 @@ function [controller, obj_val, obj_hist] = solve_ilqr(Obj)
     g = Obj.Parameters.Goals;
 
     states = [Obj.Init.mean zeros(n, horizon)];
-    inputs = zeros(m, horizon);
+    nominal_states = zeros(n, horizon + 1);
+    inputs = Obj.Parameters.NomInputs;
 
     obj_val = inf;
     obj_hist = zeros(Obj.SolverOptions.Iters, 1);
     
-    for iter = 1:Obj.Parameters.Iters
+    for iter = 1:Obj.SolverOptions.Iters
         % Forward Equations
         for t = 1:horizon
-            inputs(:, t) = K(:, :, t) * (states(:, t) - nominal_states(:, t)) + f(:, t);
+            inputs(:, t) = inputs(:, t) + K(:, :, t) * (states(:, t) - nominal_states(:, t)) + f(:, t);
             [A(:, :, t), B(:, :, t)] = linearize(Obj, states(:, t), inputs(:, t), t);
             [Q(:, :, t), R(:, :, t)] = quadraticize_cost(Obj, states(:, t), inputs(:, t), t);
             
             states(:, t + 1) = dynamics(Obj, states(:, t), inputs(:, t), t);
-            obj_hist(iter) = obj_hist(iter) + costs(Obj, states(:, t), inputs(:, t), t);
+            obj_hist(iter) = obj_hist(iter) + cost(Obj, states(:, t), inputs(:, t), t);
         end
         
         nominal_states = states;
@@ -42,7 +43,7 @@ function [controller, obj_val, obj_hist] = solve_ilqr(Obj)
         
         for t = horizon:-1:1
             K(:, :, t) = -inv(R(:, :, t) + B(:, :, t)' * P(:, :, t + 1) * B(:, :, t)) ...
-                * B(:, :, t) * P(:, :, t + 1) * A(:, :, t);
+                * B(:, :, t)' * P(:, :, t + 1) * A(:, :, t);
             
             f(:, t) = -(R(:, :, t) + B(:, :, t)' * P(:, :, t + 1) * B(:, :, t)) ...
                 \ (B(:, :, t)' * b(:, t + 1) + R(:, :, t) * inputs(:, t));
@@ -51,7 +52,7 @@ function [controller, obj_val, obj_hist] = solve_ilqr(Obj)
                 * (A(:, :, t) - B(:, :, t) * K(:, :, t)) + Q(:, :, t);
             
             b(:, t) = (A(:, :, t) - B(:, :, t) * K(:, :, t))' * b(:, t + 1) ...
-                - K(:, :, t)' * R(:, :, t) * u(:, t) + Q(:, :, t) * states(:, t);
+                - K(:, :, t)' * R(:, :, t) * inputs(:, t) + Q(:, :, t) * states(:, t);
         end
         
         if obj_hist(iter) < obj_val

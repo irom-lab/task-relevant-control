@@ -47,11 +47,11 @@ classdef (Abstract) ContControlProblem < ControlProblem
     
     
     methods (Abstract)
-        next_state = dynamics(Obj, State, Input)
-        [A, B] = linearize(Obj, State, Input)
+        next_state = dynamics(Obj, State, Input, t)
+        [A, B] = linearize(Obj, State, Input, t)
         
-        c = cost(Obj, State, Input)
-        [Q, R] = quadraticize_cost(Obj, State, Input)
+        c = cost(Obj, State, Input, t)
+        [Q, R] = quadraticize_cost(Obj, State, Input, t)
         
         c = terminal_cost(State);
         Q = quadraticize_terminal_cost(Obj, State)
