@@ -1,4 +1,4 @@
-function [A, B] = linearize(Obj, State, Input)
+function [A, B] = linearize(Obj, State, Input, t)
     delta = Obj.Parameters.Delta;
     
     A = zeros(Obj.Parameters.NStates);
