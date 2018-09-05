@@ -1,4 +1,4 @@
-function [ traj, cum_cost ] = sim_meas_uncertainty(Obj, horizon)
+function [ traj, cum_cost ] = sim_meas_uncertainty(Obj, horizon, actual_meas_cov)
 %SIM_MEAS_UNCERTAINTY Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -6,8 +6,11 @@ traj = [mvnrnd(Obj.Init.mean, Obj.Init.cov)' zeros(Obj.Parameters.NStates, horiz
 costs = zeros(horizon + 1, 1);
 
 meas_cov = Obj.Parameters.MeasCov;
-actual_meas_cov = 10 * rand(size(meas_cov, 1));
-actual_meas_cov = actual_meas_cov' * actual_meas_cov;
+
+if nargin < 3
+    actual_meas_cov = 10 * rand(size(meas_cov, 1));
+    actual_meas_cov = actual_meas_cov' * actual_meas_cov;
+end
 
 kalman_est = Obj.Init.mean;
 kalman_cov = Obj.Init.cov;
