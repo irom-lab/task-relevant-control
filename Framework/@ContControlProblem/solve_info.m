@@ -174,7 +174,7 @@ function [C, d, Sigma_eta] = solve_code_given_state(state, A, B, C, d, Sigma_eta
 
     C = tradeoff * Sigma_eta * K' * B' * P * A;
 
-    d = Sigma_eta * (tradeoff * K' * B' * b + F * (C * state.mean + d));
+    d = Sigma_eta * (tradeoff * K' * B' * b - F * (C * state.mean + d));
 end
 
 function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b, tol)
