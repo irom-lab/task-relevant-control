@@ -10,43 +10,88 @@ n = 2;
 m = 2;
 
 Init.mean = [5; 3];
-Init.cov = 0.1 * eye(2);
+Init.cov = 1 * eye(2);
 
 Parameters.A = rand(n, n);
 Parameters.B = rand(n, m);
-Parameters.Q = diag([1 1]);
+Parameters.Q = diag([100 1]);
 Parameters.R = eye(m);
-Parameters.MeasCov = diag([0.1 0.1]);
-Parameters.ProcCov = zeros(2);
+Parameters.MeasCov = 1 * diag([1 1]);
+Parameters.ProcCov = 1 * diag([0.1, 0.1]);
 
 Parameters.NStates = 2;
 Parameters.NInputs = 2;
 
-Parameters.Horizon = 10;
-Parameters.Goals = zeros(Parameters.NStates, Parameters.Horizon);
+Parameters.Horizon = 5;
+Parameters.Goals = zeros(2, Parameters.Horizon);
 
-SolverOptions.Iters = 5;
-SolverOptions.Tradeoff = 1;
+
+SolverOptions.Iters = 7;
+SolverOptions.Tradeoff = 0.0001;
 SolverOptions.NumCodewords = 2;
 SolverOptions.FixedCodeMap = false;
+SolverOptions.Tol = 1e-6;
+
+samples = 1000;
 
 Problem = LTIProblem(Parameters, SolverOptions, Init);
 
 %%
 
-[controller, obj_val, obj_hist] = solve_info(Problem);
+[controller, obj_val, obj_hist] = solve_exact(Problem);
+
+%%
+fprintf('Running N = %d simulations...\n', samples);
+
+rng(0);
+
+c1 = zeros(Parameters.Horizon + 1, samples);
+
+tic;
+for i = 1:samples
+    [~, c1(:, i)] = sim_meas_uncertainty(Problem, Parameters.Horizon);
+end
+
+time = toc;
 
 %%
 
-init.mean = [5; 3];
-init.cov = 0.1 * eye(2);
+[controller, obj_val, obj_hist, mean_traj] = solve_info(Problem);
 
-[traj, costs] = sim_meas_uncertainty(Problem, init, Parameters.Horizon);
+%%
+
+fprintf('Running N = %d simulations...\n', samples);
+
+rng(0);
+
+c2 = zeros(Parameters.Horizon + 1, samples);
+traj = zeros(2, Parameters.Horizon + 1, samples);
+
+tic;
+for i = 1:samples
+    [traj(:, :, i), c2(:, i)] = sim_meas_uncertainty(Problem, Parameters.Horizon);
+end
+
+time = toc;
+
+%%
 
 figure;
 hold on;
 
-plot(traj(1, :), traj(2, :), 'LineWidth', 2);
+title(['\beta = ' num2str(SolverOptions.Tradeoff)]);
+xlabel('Timestep', 'FontSize', 15);
+ylabel('Cummulative Cost', 'FontSize', 15);
+xlim([1 Parameters.Horizon + 1]);
 
-xlim([-5, 5]);
-ylim([-5, 5]);
+h1 = plot(1:size(c1, 1), mean(c1, 2), '-k');
+h2 = plot(1:size(c2, 1), mean(c2, 2), '-b');
+
+shadedErrorBar(1:size(c1, 1), mean(c1, 2), std(c1, 0, 2), 'lineprops', '-k');
+shadedErrorBar(1:size(c2, 1), mean(c2, 2), std(c2, 0, 2), 'lineprops', '-b');
+
+plot(1:size(c1, 1), mean(c1, 2), '-k', 'LineWidth', 2);
+plot(1:size(c2, 1), mean(c2, 2), '-b', 'LineWidth', 2);
+
+scatter(1:size(c1, 1), mean(c1, 2), 'k', 'filled');
+scatter(1:size(c2, 1), mean(c2, 2), 'b', 'filled');

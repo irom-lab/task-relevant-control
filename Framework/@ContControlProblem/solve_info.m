@@ -1,4 +1,4 @@
-function [controller, obj_val, obj_hist] = solve_info(Obj)
+function [controller, obj_val, obj_hist, mean_traj] = solve_info(Obj)
 %SOLVE_INFO Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -13,11 +13,12 @@ else
     if Obj.SolverOptions.FixedCodeMap
         [controller, obj_val, obj_hist] = solve_info_finite_fixed(Obj);
     else
-        [controller, obj_val, obj_hist] = solve_info_finite(Obj);
+        [controller, obj_val, obj_hist, mean_traj] = solve_info_finite(Obj);
     end
 end
 
 Obj.Controller = controller;
+Obj.SolverName = 'Info';
 
 end
 
@@ -29,7 +30,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite_fixed(Obj)
     error('Not yet implemented');
 end
 
-function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
+function [controller, obj_val, obj_hist, mean_traj] = solve_info_finite(Obj)
     n = Obj.Parameters.NStates;
     m = Obj.Parameters.NInputs;
     p = Obj.SolverOptions.NumCodewords;
@@ -38,9 +39,11 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
     A = zeros(n, n, horizon);
     B = zeros(n, m, horizon);
-    C = zeros(p, n, horizon);
+    C = rand(p, n, horizon);
     d = rand(p, horizon);
     K = rand(m, p, horizon);
+    Q = zeros(n, n, horizon);
+    R = zeros(m, m, horizon);
     
     for t = 1:horizon
         Sigma_eta(:, :, t) = rand(p, p);
@@ -57,21 +60,40 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
 
     obj_val = inf;
     obj_hist = zeros(Obj.SolverOptions.Iters, 1);
+    mi_total = 0;
+    expected_cost_total = 0;
 
     for iter = 1:Obj.SolverOptions.Iters
+        mi_total = 0;
+        expected_cost_total = 0;
+        
         % Forward equations
         for t = 1:horizon
-            inputs(:, t) = K(:, :, t) * C(:, :, t) * states(t).mean;
+            inputs(:, t) = K(:, :, t) * (C(:, :, t) * states(t).mean + d(:, t));
+            input_cov = K(:, :, t) * (C(:, :, t) * states(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * K(:, :, t)';
+            
             [A(:, :, t), B(:, :, t)] = linearize(Obj, states(t).mean, inputs(:, t));
+            [Q(:, :, t), R(:, :, t)] =  quadraticize_cost(Obj, states(t).mean, inputs(:, t));
 
             states(t + 1).mean = dynamics(Obj, states(t).mean, inputs(:, t));
-            states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcCov;
+            states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' ...
+            + B(:, :, t) * input_cov * B(:, :, t)'...
+            + Obj.Parameters.ProcCov;
 
-            obj_hist(iter) = obj_hist(iter) + cost(Obj, states(t).mean, inputs(:, t)) + ...
-                (1 / tradeoff) * mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
+            expected_cost_total = expected_cost_total ....
+                + cost(Obj, states(t).mean, inputs(:, t), t) + trace(Q(:, :, t) * states(t).cov) ...
+                + trace(R(:, :, t) * input_cov);
+            
+            mi_total = mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
         end
 
-        obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(end).mean);
+        Q_final = quadraticize_terminal_cost(Obj, states(end).mean);
+        
+        expected_cost_total = expected_cost_total + terminal_cost(Obj, states(end).mean) + trace(Q_final * states(end).cov);
+        
+        obj_hist(iter) = expected_cost_total + (1 / tradeoff) * mi_total;
+        
+        fprintf('[%d]\tExpected Cost: %f\tMI: %f\tTotal: %f\n', iter, expected_cost_total, mi_total, obj_hist(iter));
 
         if obj_hist(iter) < obj_val
             obj_val = obj_hist(iter);
@@ -79,11 +101,12 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
             controller.d = d;
             controller.K = K;
             controller.Sigma_eta = Sigma_eta;
+            mean_traj = states;
         end
 
         % Backward Equations
-        P(:, :, end) = quadraticize_terminal_cost(Obj, states(end).mean);
-        b(:, end) = -P(:, :, end) * Obj.Parameters.Goals(:, end);
+        P(:, :, end) = Q_final;
+        b(:, end) = -Q_final * g(:, end);
         
         for t = horizon:-1:1
             [Q, R] = quadraticize_cost(Obj, states(t).mean, inputs(:, t));
@@ -92,7 +115,7 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
                 Sigma_eta(:, :, t), K(:, :, t), R, P(:, :, t + 1), b(:, t + 1), tradeoff);
 
             K(:, :, t) = solve_input_given_code(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), ...
-                Sigma_eta(:, :, t), R, P(:, :, t + 1), b(:, t + 1));
+                Sigma_eta(:, :, t), R, P(:, :, t + 1), b(:, t + 1), Obj.SolverOptions.Tol);
             
             [P(:, :, t), b(:, t)] = solve_value_function(states(t), A(:, :, t), B(:, :, t), C(:, :, t), d(:, t), Sigma_eta(:, :, t), ...
                 K(:, :, t), Q, R, g(:, t), P(:, :, t + 1), b(:, t + 1), tradeoff);
@@ -102,24 +125,44 @@ function [controller, obj_val, obj_hist] = solve_info_finite(Obj)
     obj_hist(end + 1) = 0;
 
     % Forward equations
+    mi_total = 0;
+    expected_cost_total = 0;
+
     for t = 1:horizon
+        inputs(:, t) = (C(:, :, t) * states(t).mean + d(:, t));
+        input_cov = K(:, :, t) * (C(:, :, t) * states(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * K(:, :, t)';
+
         [A(:, :, t), B(:, :, t)] = linearize(Obj, states(t).mean, inputs(:, t));
+        [Q(:, :, t), R(:, :, t)] =  quadraticize_cost(Obj, states(t).mean, inputs(:, t));
 
         states(t + 1).mean = dynamics(Obj, states(t).mean, inputs(:, t));
-        states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' + Obj.Parameters.ProcCov;
+        
+        states(t + 1).cov = A(:, :, t) * states(t).cov * A(:, :, t)' ...
+            + B(:, :, t) * K(:, :, t) * (C(:, :, t) * states(t).cov * C(:, :, t)' + Sigma_eta(:, :, t)) * K(:, :, t)' * B(:, :, t)'...
+            + Obj.Parameters.ProcCov;
 
-        obj_hist(end) = obj_hist(end) + cost(Obj, states(t).mean, inputs(:, t)) + ...
-            (1 / tradeoff) * mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
+        expected_cost_total = expected_cost_total ....
+            + cost(Obj, states(t).mean, inputs(:, t), t) + trace(Q(:, :, t) * states(t).cov) ...
+            + trace(R(:, :, t) * input_cov);
+
+        mi_total = mutual_info(states(t).cov, C(:, :, t), Sigma_eta(:, :, t));
     end
 
-    obj_hist(end) = obj_hist(end) + terminal_cost(Obj, states(end).mean);
+    Q_final = quadraticize_terminal_cost(Obj, states(end).mean);
 
-    if obj_hist(end) < obj_val
-        obj_val = obj_hist(end + 1);
+    expected_cost_total = expected_cost_total + terminal_cost(Obj, states(end).mean) + trace(Q_final * states(end).cov);
+
+    obj_hist(iter + 1) = expected_cost_total + (1 / tradeoff) * mi_total;
+
+    fprintf('[%d]\tExpected Cost: %f\tMI: %f\tTotal: %f\n', iter + 1, expected_cost_total, mi_total, obj_hist(iter + 1));
+    
+    if obj_hist(iter + 1) < obj_val
+        obj_val = obj_hist(iter + 1);
         controller.C = C;
         controller.d = d;
         controller.K = K;
-        controller.P = P;
+        controller.Sigma_eta = Sigma_eta;
+        mean_traj = states;
     end
 end
 
@@ -134,7 +177,7 @@ function [C, d, Sigma_eta] = solve_code_given_state(state, A, B, C, d, Sigma_eta
     d = Sigma_eta * (tradeoff * K' * B' * b + F * (C * state.mean + d));
 end
 
-function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
+function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b, tol)
     n = size(A, 1);
     m = size(B, 2);
     p = size(C, 2);
@@ -149,7 +192,11 @@ function K_val = solve_input_given_code(state, A, B, C, d, Sigma_eta, R, P, b)
     
     constraint = [R * K * x_tilde_bar * x_tilde_bar' + R * K * Sigma_x_tilde ...
         + B' * P * A * x_bar * x_tilde_bar' + B' * P * B * K * x_tilde_bar * x_tilde_bar' ...
-        + B' * P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar' == 0];
+        + B' * P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar' <= tol;
+        
+        R * K * x_tilde_bar * x_tilde_bar' + R * K * Sigma_x_tilde ...
+        + B' * P * A * x_bar * x_tilde_bar' + B' * P * B * K * x_tilde_bar * x_tilde_bar' ...
+        + B' * P * B * K * Sigma_x_tilde + B' * b * x_tilde_bar' >= -tol;];
     
     options = sdpsettings('verbose', false, 'debug', true);
     
@@ -172,7 +219,7 @@ function [P, b] = solve_value_function(state, A, B, C, d, Sigma_eta, K, Q, R, g,
 
     P = Q + (1 / tradeoff) * G + C' * K' * R * K * C + (A + B * K * C)' * P * (A + B * K * C);
             
-    b = A' * P * B * K * d - Q * g - (1 / tradeoff) * G * state.mean - C' * K' * R * K * d + b;
+    b = A' * P * B * K * d - Q * g - (1 / tradeoff) * G * state.mean + C' * K' * R * K * d + (A + B * K * C)' * b;
 end
 
 function mi = mutual_info(state_cov, C, Sigma_eta)
