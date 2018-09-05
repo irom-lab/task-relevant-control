@@ -37,6 +37,8 @@ function [controller, obj_val, obj_hist] = solve_ilqr(Obj)
         
         obj_hist(iter) = obj_hist(iter) + terminal_cost(Obj, states(:, end));
         
+        fprintf('\t[%d]\tObjective: %f\n', iter, obj_hist(iter));
+        
         % Backward Equations
         P(:, :, end) = quadraticize_terminal_cost(Obj, states(:, end));
         b(:, end) = P(:, :, end) * (states(:, end) - g(:, end));

@@ -43,6 +43,8 @@ classdef (Abstract) ContControlProblem < ControlProblem
         end
         
         [ traj, cum_cost ] = sim_meas_uncertainty(Obj, init, horizon)
+        
+        [ controller, obj_val, obj_hist ] = solve_info_ilqr(Obj)
     end
     
     
