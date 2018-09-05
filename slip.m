@@ -1,63 +1,53 @@
-function slip
+
 
 % Spring Loaded Inverted Pendulum
 %
 % This code was written by Russ Tedrake <russt@mit.edu>.
 % Modified for 6.832 problem set by Rick Cory
 
-
-global m r0 theta0 k g plant_dt display_dt yd;
-
-m = 1;
-r0 = 1;
-% this is the touchdown angle for the passive system
-theta0 = pi/8;
-%theta0 = 0;
-k = 300;
-g = 9.8;
-plant_dt = 1e-3;
-display_dt = 0.005;
-y0 = 1.5;
-yd = 1.5;
-E = 30;
-
 % simulate the passive system
-simulate(y0,E);
+simulate(slip_steady_state, Parameters);
 
-end
 
 
 % ================================================================ 
 % Simulates and draws the system. 
 % YOU'LL NEED TO ADD CODE FOR THE DEADBEAT CONTROLLER. 
 % ===============================================================
-function simulate(y,E)
-
-global m r0 theta0 k g plant_dt display_dt;
+function simulate(x, Parameters)
 
 %theta0 = .4; % this is a fixed touch down angle
-x = apex_to_state(y,E);
+x = [x; false];
 t = 0; last_display_t = -inf;
+plant_dt = 1e-6;
+display_dt = 1e-2;
+
+m = Parameters.Mass;
+r0 = Parameters.TouchdownRadius;
+theta0 = Parameters.TouchdownAngle;
+k = Parameters.SpringConst;
+g = Parameters.Gravity;
+
 
 while (1)
   % x(5) below is just an indicator that tells you what mode you're in,
   % i.e. flight, flight-to-stance, stance-to-flight
   if (x(5))
-    x = x + plant_dt*flight_dynamics(x);
+    x = x + plant_dt*flight_dynamics(x, Parameters);
     if (x(2)<r0*cos(theta0) && x(4)<0)
-      x = flight_to_stance(x);
+      x = flight_to_stance(x, Parameters);
     end
   else
-    x = x + plant_dt*stance_dynamics(x);
+    x = x + plant_dt*stance_dynamics(x, Parameters);
     if (x(1)>r0 && x(3)>0)
-      x = stance_to_flight(x);
+      x = stance_to_flight(x, Parameters);
       % check for falling
       if (x(3)<0 || x(4)<0), break; end
     end
   end
   t = t+plant_dt;
   if (t-last_display_t>display_dt)
-    draw(x,t);
+    draw(x,t, Parameters);
     last_display_t = t;
   end
 end
@@ -74,11 +64,15 @@ x = [0; y; sqrt(2/m*(E - m*g*y)); 0; 1];
 end
 
 % === Flight-to-stance dynamics ===================
-function xp = flight_to_stance(x)
+function xp = flight_to_stance(x, Parameters)
 % x = [x;y;xdot;ydot]
 % xp = [r,theta,rdot,thetadot]
 
-global m r0 theta0 k g;
+m = Parameters.Mass;
+r0 = Parameters.TouchdownRadius;
+theta0 = Parameters.TouchdownAngle;
+k = Parameters.SpringConst;
+g = Parameters.Gravity;
 
 r = x(2)/cos(theta0);
 
@@ -89,11 +83,15 @@ xp = [ r ; theta0; ...
 end
 
 % === Stance-to-flight dynamics ================
-function x = stance_to_flight(xp)
+function x = stance_to_flight(xp, Parameters)
 % x = [x;y;xdot;ydot]
 % xp = [r,theta,rdot,thetadot]
 
-global m r0 theta0 k g;
+m = Parameters.Mass;
+r0 = Parameters.TouchdownRadius;
+theta0 = Parameters.TouchdownAngle;
+k = Parameters.SpringConst;
+g = Parameters.Gravity;
 
 x = [ -xp(1)*sin(xp(2));...
   xp(1)*cos(xp(2)); ...
@@ -104,20 +102,28 @@ x = [ -xp(1)*sin(xp(2));...
 end
   
 % === Flight dynamics ================================
-function xdot = flight_dynamics(x)
+function xdot = flight_dynamics(x, Parameters)
 % x = [x;y;xdot;ydot]
 
-global m r0 theta0 k g;
+m = Parameters.Mass;
+r0 = Parameters.TouchdownRadius;
+theta0 = Parameters.TouchdownAngle;
+k = Parameters.SpringConst;
+g = Parameters.Gravity;
 
 xdot = [x(3:4); 0; -g/m; 0];
 
 end
 
 % === Stance dynamics ===============================
-function xpdot = stance_dynamics(xp)
+function xpdot = stance_dynamics(xp, Parameters)
 % xp = [r,theta,rdot,thetadot]
 
-global m r0 theta0 k g;
+m = Parameters.Mass;
+r0 = Parameters.TouchdownRadius;
+theta0 = Parameters.TouchdownAngle;
+k = Parameters.SpringConst;
+g = Parameters.Gravity;
 
 xpdot = [xp(3:4); ...
   k/m*(r0-xp(1)) + xp(1)*xp(4)^2 - g*cos(xp(2)); ... 
@@ -127,9 +133,14 @@ xpdot = [xp(3:4); ...
 end
 
 % ==== The draw function =======================================
-function draw(x,t)
+function draw(x,t, Parameters)
 
-global m r0 theta0 k g;
+m = Parameters.Mass;
+r0 = Parameters.TouchdownRadius;
+theta0 = Parameters.TouchdownAngle;
+k = Parameters.SpringConst;
+g = Parameters.Gravity;
+
 figure(25);
 set(gcf,'DoubleBuffer','on');
 
