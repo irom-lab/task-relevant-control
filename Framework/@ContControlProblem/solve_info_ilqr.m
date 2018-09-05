@@ -13,7 +13,7 @@ function [controller, obj_val, obj_hist] = solve_info_ilqr(Obj)
     d = zeros(p, horizon);
     Sigma_eta = 0.01 * repmat(eye(p, n), 1, 1, horizon);
     
-    K = zeros(m, p, horizon);
+    K = 0.1 * rand(m, p, horizon);
     f = zeros(m, horizon);
     
     Q = zeros(n, n, horizon);
@@ -25,13 +25,17 @@ function [controller, obj_val, obj_hist] = solve_info_ilqr(Obj)
     g = Obj.Parameters.Goals;
 
     states = Obj.Init;
-    nominal_states = zeros(n, horizon + 1);
+    nominal_states = [Obj.Init.mean zeros(n, horizon)];
     mean_inputs = Obj.Parameters.NomInputs;
 
     obj_val = inf;
     obj_hist = zeros(Obj.SolverOptions.Iters, 1);
     
     tradeoff = Obj.Parameters.Tradeoff;
+    
+    for t = 1:horizon
+        nominal_states(:, t + 1) = dynamics(Obj, nominal_states(:, t), mean_inputs(:, t), t);
+    end
     
     for iter = 1:Obj.SolverOptions.Iters
         mi = 0;
