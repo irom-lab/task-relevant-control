@@ -24,8 +24,9 @@ classdef LTIProblem < ContControlProblem
             B = Obj.Parameters.B;
         end
         
-        function c = cost(Obj, State, Input)
-            c = State' * Obj.Parameters.Q * State + Input' * Obj.Parameters.R * Input;
+        function c = cost(Obj, State, Input, t)
+            c = (State - Obj.Parameters.Goals(:, t))' * Obj.Parameters.Q * (State - Obj.Parameters.Goals(:, t)) ...
+                + Input' * Obj.Parameters.R * Input;
         end
         
         function [Q, R] = quadraticize_cost(Obj, State, Input)
@@ -34,7 +35,7 @@ classdef LTIProblem < ContControlProblem
         end
         
         function c = terminal_cost(Obj, State)
-            c = State' * Obj.Parameters.Q * State;
+            c = (State - Obj.Parameters.Goals(:, end))' * Obj.Parameters.Q * (State - Obj.Parameters.Goals(:, end));
         end
         
         function Q = quadraticize_terminal_cost(Obj, State)

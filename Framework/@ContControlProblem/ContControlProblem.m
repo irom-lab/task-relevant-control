@@ -31,12 +31,13 @@ classdef (Abstract) ContControlProblem < ControlProblem
                 horizon = Obj.Parameters.Horizon;
             end
             
-            traj = [Obj.Init zeros(Obj.NStates, horizon)];
+            traj = [Obj.Init.mean zeros(Obj.NStates, horizon)];
             costs = zeros(horizon + 1, 1);
             
             for t = 1:horizon
-                costs(t) = cost(Obj, traj(:, t), Obj.Controller(:, :, t) * traj(:, t));
-                traj(:, t + 1) = dynamics(Obj, traj(:, t), Obj.Controller(:, :, t) * traj(:, t));
+                input = Obj.Controller.K(:, :, t) * traj(:, t) + Obj.Controller.d(:, t);
+                costs(t) = cost(Obj, traj(:, t), input);
+                traj(:, t + 1) = dynamics(Obj, traj(:, t), input);
             end
             
             costs(end) = terminal_cost(Obj, traj(:, end));
@@ -47,11 +48,11 @@ classdef (Abstract) ContControlProblem < ControlProblem
     
     
     methods (Abstract)
-        next_state = dynamics(Obj, State, Input)
-        [A, B] = linearize(Obj, State, Input)
+        next_state = dynamics(Obj, State, Input, t)
+        [A, B] = linearize(Obj, State, Input, t)
         
-        c = cost(Obj, State, Input)
-        [Q, R] = quadraticize_cost(Obj, State, Input)
+        c = cost(Obj, State, Input, t)
+        [Q, R] = quadraticize_cost(Obj, State, Input, t)
         
         c = terminal_cost(State);
         Q = quadraticize_terminal_cost(Obj, State)
