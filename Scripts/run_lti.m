@@ -19,18 +19,20 @@ Parameters.R = eye(m);
 Parameters.MeasCov = 1 * diag([1 1]);
 Parameters.ProcCov = 1 * diag([0.1, 0.1]);
 
-Parameters.NStates = 2;
-Parameters.NInputs = 2;
+Parameters.NStates = n;
+Parameters.NInputs = m;
 
 Parameters.Horizon = 5;
-Parameters.Goals = zeros(2, Parameters.Horizon);
+Parameters.Goals = zeros(2, Parameters.Horizon + 1);
+Parameters.NomInputs = zeros(Parameters.NInputs, Parameters.Horizon);
 
 
-SolverOptions.Iters = 7;
-SolverOptions.Tradeoff = 0.0001;
+SolverOptions.Iters = 10;
+SolverOptions.Tradeoff = 0.001;
 SolverOptions.NumCodewords = 2;
 SolverOptions.FixedCodeMap = false;
 SolverOptions.Tol = 1e-6;
+
 
 samples = 1000;
 
@@ -74,7 +76,23 @@ time = toc;
 
 %%
 
-[controller, obj_val, obj_hist, mean_traj] = solve_info(Problem);
+rng(0);
+clc;
+[controller, obj_val, obj_hist, mean_traj, mean_inputs] = solve_info(Problem);
+fprintf('\n');
+
+%%
+
+rng(0);
+Problem.SolverOptions.InitController = controller;
+[controller, obj_val, obj_hist] = solve_info_lqg(Problem);
+fprintf('\n');
+
+%%
+
+% rng(0);
+% [controller, obj_val, obj_hist] = solve_info_ilqr(Problem);
+% fprintf('\n');
 
 %%
 
