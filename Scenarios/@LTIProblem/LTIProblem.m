@@ -15,11 +15,11 @@ classdef LTIProblem < ContControlProblem
     end
     
     methods
-        function next_state = dynamics(Obj, State, Input)
+        function next_state = dynamics(Obj, State, Input, t)
             next_state = Obj.Parameters.A * State + Obj.Parameters.B * Input;
         end
         
-        function [A, B] = linearize(Obj, State, Input)
+        function [A, B] = linearize(Obj, State, Input, t)
             A = Obj.Parameters.A;
             B = Obj.Parameters.B;
         end
@@ -29,7 +29,7 @@ classdef LTIProblem < ContControlProblem
                 + Input' * Obj.Parameters.R * Input;
         end
         
-        function [Q, R] = quadraticize_cost(Obj, State, Input)
+        function [Q, R] = quadraticize_cost(Obj, State, Input, t)
             Q = Obj.Parameters.Q;
             R = Obj.Parameters.R;
         end

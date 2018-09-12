@@ -1,4 +1,4 @@
-close all;
+%close all;
 clear;
 clc;
 
@@ -9,13 +9,13 @@ rng(0);
 n = 2;
 m = 2;
 
-Init.mean = [5; 3];
-Init.cov = 1 * eye(2);
+Init.mean = [3; 5];
+Init.cov =  1 * eye(2);
 
 Parameters.A = rand(n, n);
 Parameters.B = rand(n, m);
-Parameters.Q = diag([100 1]);
-Parameters.R = eye(m);
+Parameters.Q = 0.1 * diag([10 10]);
+Parameters.R = 0.1 * eye(m);
 Parameters.MeasCov = 1 * diag([1 1]);
 Parameters.ProcCov = 1 * diag([0.1, 0.1]);
 
@@ -24,11 +24,11 @@ Parameters.NInputs = m;
 
 Parameters.Horizon = 5;
 Parameters.Goals = zeros(2, Parameters.Horizon + 1);
-Parameters.NomInputs = zeros(Parameters.NInputs, Parameters.Horizon);
+Parameters.NomInputs = rand(Parameters.NInputs, Parameters.Horizon);
 
 
-SolverOptions.Iters = 10;
-SolverOptions.Tradeoff = 0.001;
+SolverOptions.Iters = 29;
+SolverOptions.Tradeoff = 0.1;
 SolverOptions.NumCodewords = 2;
 SolverOptions.FixedCodeMap = false;
 SolverOptions.Tol = 1e-6;
@@ -76,15 +76,13 @@ time = toc;
 
 %%
 
-rng(0);
-clc;
-[controller, obj_val, obj_hist, mean_traj, mean_inputs] = solve_info(Problem);
-fprintf('\n');
+% rng(0);
+% [controller, obj_val, obj_hist, mean_traj, mean_inputs] = solve_info(Problem);
+% fprintf('\n');
 
 %%
 
 rng(0);
-Problem.SolverOptions.InitController = controller;
 [controller, obj_val, obj_hist] = solve_info_lqg(Problem);
 fprintf('\n');
 

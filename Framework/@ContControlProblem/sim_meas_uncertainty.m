@@ -24,8 +24,8 @@ for t = 1:horizon
     if isequal(Obj.SolverName, 'Exact')
         input = Obj.Controller.K(:, :, t) * kalman_est + Obj.Controller.d(:, t);
     elseif isequal(Obj.SolverName, 'Info')
-        input = Obj.Controller.K(:, :, t) * (Obj.Controller.C(:, :, t) * kalman_est ...
-            + Obj.Controller.d(:, t) + mvnrnd(zeros(Obj.Parameters.NInputs, 1), Obj.Controller.Sigma_eta(:, :, t))');
+        input = Obj.Controller.nominal_inputs(:, t) + Obj.Controller.K(:, :, t) * (Obj.Controller.C(:, :, t) * (kalman_est - Obj.Controller.nominal_states(:, t)) ...
+            + Obj.Controller.d(:, t) + mvnrnd(zeros(Obj.Parameters.NInputs, 1), Obj.Controller.Sigma_eta(:, :, t))') + Obj.Controller.f(:, t);
     end
     
     costs(t) = cost(Obj, traj(:, t), input, t);
