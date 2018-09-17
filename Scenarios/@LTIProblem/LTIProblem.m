@@ -15,6 +15,8 @@ classdef LTIProblem < ContControlProblem
     end
     
     methods
+        [ traj, cum_cost ] = sim_slip_uncertainty(Obj, fp, horizon, actual_meas_cov)
+        
         function next_state = dynamics(Obj, State, Input, t)
             next_state = Obj.Parameters.A * State + Obj.Parameters.B * Input;
         end

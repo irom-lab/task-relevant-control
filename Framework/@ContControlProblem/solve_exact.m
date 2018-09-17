@@ -30,7 +30,7 @@ function [best_controller, obj_val, obj_hist] = solve_exact_horizon(Obj, horizon
     m = Obj.NInputs;
     
     K = zeros(m, n, horizon);
-    d = zeros(m, horizon);
+    f = zeros(m, horizon);
     
     P = zeros(n, n, horizon + 1);
     b = zeros(n, horizon + 1);
@@ -46,7 +46,7 @@ function [best_controller, obj_val, obj_hist] = solve_exact_horizon(Obj, horizon
         
         % Forward equations
         for t = 1:horizon
-            inputs(:, t) = K(:, :, t) * states(:, t) + d(:, t);
+            inputs(:, t) = K(:, :, t) * states(:, t) + f(:, t);
             states(:, t + 1) = dynamics(Obj, states(:, t), inputs(:, t));
             obj_hist(iter) = obj_hist(iter) + cost(Obj, states(:, t), inputs(:, t), t);
         end
@@ -55,7 +55,9 @@ function [best_controller, obj_val, obj_hist] = solve_exact_horizon(Obj, horizon
         
         if obj_hist(iter) < obj_val
             best_controller.K = K;
-            best_controller.d = d;
+            best_controller.f = f;
+            best_controller.nominal_inputs = zeros(Obj.Parameters.NInputs, Obj.Parameters.Horizon);
+            best_controller.nominal_states = zeros(Obj.Parameters.NStates, Obj.Parameters.Horizon + 1);
             
             obj_val = obj_hist(iter);
         end
@@ -69,17 +71,17 @@ function [best_controller, obj_val, obj_hist] = solve_exact_horizon(Obj, horizon
             [Q, R] = quadraticize_cost(Obj, states(:, t), inputs(:, t)); 
             
             K(:, :, t) = -inv(R + B' * P(:, :, t + 1) * B) * B' * P(:, :, t + 1) * A;
-            d(:, t) = -inv(R + B' * P(:, :, t + 1) * B) * B' * b(:, t + 1);
+            f(:, t) = -inv(R + B' * P(:, :, t + 1) * B) * B' * b(:, t + 1);
             
             P(:, :, t) = Q + A' * P(:, :, t + 1) * A - A' * P(:, :, t + 1) * B * inv(R + B' * P(:, :, t + 1) * B) * B' * P(:, :, t + 1) * A;
-            b(:, t) = -Q * g(:, t) + K(:, :, t)' * R * d(:, t) + ...
-                (A + B * K(:, :, t))' * P(:, :, t) * B * d(:, t) + (A + B * K(:, :, t))' * b(:, t + 1);
+            b(:, t) = -Q * g(:, t) + K(:, :, t)' * R * f(:, t) + ...
+                (A + B * K(:, :, t))' * P(:, :, t) * B * f(:, t) + (A + B * K(:, :, t))' * b(:, t + 1);
         end
     end
     
     % Final forward pass
     for t = 1:horizon
-        inputs(:, t) = K(:, :, t) * states(:, t) + d(:, t);
+        inputs(:, t) = K(:, :, t) * states(:, t) + f(:, t);
         states(:, t + 1) = dynamics(Obj, states(:, t), inputs(:, t));
         obj_hist(iter + 1) = obj_hist(iter + 1) + cost(Obj, states(:, t), inputs(:, t), t);
     end
@@ -88,7 +90,7 @@ function [best_controller, obj_val, obj_hist] = solve_exact_horizon(Obj, horizon
     
     if obj_hist(iter + 1) < obj_val
         best_controller.K = K;
-        best_controller.d = d;
+        best_controller.f = f;
         
         obj_val = obj_hist(iter + 1);
     end

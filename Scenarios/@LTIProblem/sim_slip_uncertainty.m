@@ -1,4 +1,4 @@
-function [ traj, inputs, cum_cost ] = sim_meas_uncertainty(Obj, horizon, actual_meas_cov)
+function [ traj, cum_cost ] = sim_slip_uncertainty(Obj, fp, horizon, actual_meas_cov)
 %SIM_MEAS_UNCERTAINTY Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -13,9 +13,6 @@ if nargin < 3
     actual_meas_cov = actual_meas_cov' * actual_meas_cov;
 end
 
-% kalman_proc_est = zeros(Obj.Parameters.NStates, 1);
-% kalman_proc_cov = Obj.Init.cov;
-
 if isequal(Obj.SolverName, 'Exact')
     kalman_proc_est = zeros(Obj.Parameters.NStates, 1);
     kalman_proc_cov = Obj.Init.cov;
@@ -27,9 +24,9 @@ end
 for t = 1:horizon
     measurement = mvnrnd(traj(:, t), actual_meas_cov)';        
     
-    A = Obj.Controller.A(:, :, t);
-    B = Obj.Controller.B(:, :, t);
-    D = eye(4);
+    A = Obj.Parameters.A;
+    B = Obj.Parameters.B;
+    D = eye(3);
     
     if isequal(Obj.SolverName, 'Exact')
                 
@@ -82,21 +79,19 @@ for t = 1:horizon
         end
     end
     
-    costs(t) = cost(Obj, traj(:, t) + Obj.Controller.nominal_states(:, t), inputs(:, t) + Obj.Controller.nominal_inputs(:, t), t);
-    next_state = slip_return_map(traj(:, t) + Obj.Controller.nominal_states(:, t), ...
-        Obj.Controller.nominal_inputs(:, t) + inputs(:, t), Obj.Parameters, true);
+    costs(t) = cost(Obj, traj(:, t), inputs(:, t), t);
+    next_state = slip_return_map([0; fp + traj(:, t)], inputs(:, t), Obj.Parameters, true);
     
     if any(isnan(next_state)) || any(isnan(A(:)))
         cum_cost = nan;
         return;
     end  
     
-    traj(:, t + 1) = next_state - Obj.Controller.nominal_states(:, t + 1) + mvnrnd(zeros(Obj.Parameters.NStates, 1), Obj.Parameters.ProcCov)';        
+    traj(:, t + 1) = next_state(2:end) - fp + mvnrnd(zeros(Obj.Parameters.NStates, 1), Obj.Parameters.ProcCov)';
 end
 
-costs(end) = terminal_cost(Obj, Obj.Controller.nominal_states(:, end) + traj(:, end));
-traj = traj + Obj.Controller.nominal_states;
-inputs = inputs + Obj.Controller.nominal_inputs;
+costs(end) = terminal_cost(Obj, traj(:, end));
+traj = traj + fp;
 cum_cost = cumsum(costs);
 
 end
@@ -126,10 +121,3 @@ function [C_tilde, Sigma_omega_tilde] = trv_measurement_variables(C, D, Sigma_om
     
     Sigma_omega_tilde = D * Sigma_x * D' - D * Sigma_x * C' * inv(Sigma_x_tilde) * C * Sigma_x * D' + Sigma_omega;
 end
-
-
-
-
-
-
-

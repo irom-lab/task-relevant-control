@@ -1,4 +1,4 @@
-function [ controller, obj_val, obj_hist ] = solve_info(Obj)
+function [ controller, obj_val, obj_hist, best_expected, best_mi ] = solve_info(Obj)
 %SOLVE_INFO Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -126,14 +126,15 @@ else
             end
         end
         
-        obj = [obj; objective(Obj, code_given_state, input_given_code, Obj.Init)];
+        [obj(end + 1), expected, mi] = objective(Obj, code_given_state, input_given_code, Obj.Init);
         fprintf('\t[%d]\tObjective: %f\n', iter, obj(end));
             
         if obj(end) < obj_val
             obj_val = obj(end);
             Obj.Controller.CodeGivenState = code_given_state;
             Obj.Controller.InputGivenCode = input_given_code;
-            
+            best_expected = expected;
+            best_mi = mi;
 
             for t = 1:horizon
                 if fixed_code_map
@@ -166,8 +167,8 @@ function info = mutual_info(a, b, joint)
     info = sum(pointwise_info(:));
 end
 
-function obj = objective(Obj, code_given_state, input_given_code, init)
-    obj = 0;
+function [obj, expected, mi] = objective(Obj, code_given_state, input_given_code, init)
+    expected = 0;
     mi = 0;
     state_dist = init;
     
@@ -190,7 +191,7 @@ function obj = objective(Obj, code_given_state, input_given_code, init)
             T = forward_eqn(Obj.Transitions, input_given_code(:, :, t) * code_given_state(:, :, t));
         end        
         
-        obj = obj + sum(Obj.Costs(:) .* state_input(:));
+        expected = expected + sum(Obj.Costs(:) .* state_input(:));
         
         mi_pointwise = code_state .* log(code_state ./ (code_dist' .* state_dist)');
         mi_pointwise(isnan(mi_pointwise) | isinf(mi_pointwise)) = 0;
@@ -199,9 +200,9 @@ function obj = objective(Obj, code_given_state, input_given_code, init)
         state_dist = T * state_dist;
     end
     
-    obj = obj + Obj.TerminalCosts' * state_dist;
+    expected = expected + Obj.TerminalCosts' * state_dist;
     
-    obj = obj + (1 / Obj.SolverOptions.Tradeoff) * mi;
+    obj = expected + (1 / Obj.SolverOptions.Tradeoff) * mi;
 end
 
 function T = forward_eqn(transitions, policy)

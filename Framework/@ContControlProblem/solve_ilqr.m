@@ -60,7 +60,14 @@ function [controller, obj_val, obj_hist] = solve_ilqr(Obj)
         if obj_hist(iter) < obj_val
             controller.K = K;
             controller.f = f;
+            controller.A = A;
+            controller.B = B;
             controller.nominal_states = nominal_states;
+            controller.nominal_inputs = inputs;
         end
     end
+    
+    Obj.SolverName = 'Exact';
+    Obj.Controller = controller;
 end
+

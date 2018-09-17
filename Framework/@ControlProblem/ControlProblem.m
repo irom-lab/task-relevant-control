@@ -1,4 +1,4 @@
-classdef ControlProblem < handle
+classdef ControlProblem < matlab.mixin.Copyable
     %CONTROLPROBLEM Summary of this class goes here
     %   Detailed explanation goes here
     

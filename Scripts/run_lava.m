@@ -6,12 +6,12 @@ clc;
 
 rng(0);
 
-samples = 50000;
+samples = 500;
 
 Parameters.Length = 4;
 Parameters.Goal = 3;
 Parameters.Horizon = 10;
-Parameters.MeasurementRate = 0.4;
+Parameters.MeasurementRate = 0.5;
 
 SolverOptions.Tradeoff = 0.01;
 SolverOptions.Iters = 30;
@@ -23,15 +23,18 @@ init_dist = init_dist ./ sum(init_dist);
 
 Problem = LavaProblem(Parameters, SolverOptions, init_dist);
 
+beta_range = [1 0.001];
+expected_factor = 0.03;
+
 %%
 
 disp('Solving problem exactly...');
 
 tic;
-[controller, objective] = solve_exact(Problem);
+[controller, exact_objective] = solve_exact(Problem);
 time = toc;
 
-fprintf('\tObjective: %f\n', objective);
+fprintf('\tObjective: %f\n', exact_objective);
 fprintf('\tFinished in %fs\n', time);
 
 %%
@@ -58,8 +61,24 @@ fprintf('\tFinished in %fs\n', time);
 disp('Solving problem with information constraint...');
 
 tic;
-[~, objective, obj_hist] = solve_info(Problem);
+betas = linspace(beta_range(1), beta_range(2), 10);
+best_mi = inf;
+BestProblem = [];
+
+for i = 1:length(betas)
+    fprintf('Round %d of %d, beta = %f\n', i, length(betas), betas(i));
+    Problem.SolverOptions.Tradeoff = betas(i);
+    [~, objective, obj_hist, expected, mi] = solve_info(Problem);
+    
+    if mi < best_mi && expected < exact_objective * expected_factor
+        best_mi = mi;
+        best_beta = betas(i);
+        BestProblem = copy(Problem);
+    end
+end
 time = toc;
+
+Problem = copy(BestProblem);
 
 fprintf('\tObjective: %f\n', objective);
 fprintf('\tFinished in %fs\n', time);
@@ -103,12 +122,12 @@ fprintf('\tFinished in %fs\n', time);
 %%
 
 
-figure;
+fig = figure;
 hold on;
 
-title(['\beta = ' num2str(SolverOptions.Tradeoff)]);
+title(['\beta = ' num2str(Problem.SolverOptions.Tradeoff)]);
 xlabel('Timestep', 'FontSize', 15);
-ylabel('Cummulative Cost', 'FontSize', 15);
+ylabel('Avg. Cummulative Cost', 'FontSize', 15);
 xlim([1 Parameters.Horizon + 1]);
 
 h1 = plot(1:size(c1, 1), mean(c1, 2), '-k');
@@ -127,14 +146,15 @@ scatter(1:size(c1, 1), mean(c1, 2), 'k', 'filled');
 scatter(1:size(c2, 1), mean(c2, 2), 'b', 'filled');
 scatter(1:size(c3, 1), mean(c3, 2), 'r', 'filled');
 
-legend([h1 h2 h3], {'Full State Solution', 'Task Driven Solution'}, 'FontSize', 12);
+legend([h1 h2 h3], {'Full State Solution', 'Task Driven Solution', 'TDV Estimates'}, 'FontSize', 12);
 
 set(gcf,'Units','inches');
 screenposition = get(gcf,'Position');
 set(gcf,...
     'PaperPosition',[0 0 screenposition(3:4)],...
     'PaperSize',[screenposition(3:4)]);
-print -dpdf -painters fig
+print -dpdf -painters Figures/lava_result.pdf
+savefig(fig, 'Figures/lava_result.fig', 'compact');
 
 %%
 

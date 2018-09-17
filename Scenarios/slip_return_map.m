@@ -1,45 +1,62 @@
-function next_state = slip_return_map(State, Input, Parameters)
+function [next_state, head_traj] = slip_return_map(State, Input, Parameters, Falling)
 %SIM_HOP Simulates one hop of the SLIP model.
 %   Init is a state vector in stance coordinates [x r; theta; rdot; thetadot]
 %   Input is theta_td of the NEXT touchdown
 
 options = odeset('Events', @(t, x) stance_events(t, x, Parameters));
 
-stance = [State(2:end)];
+stance = [1; State(2); State(3:end)];
+td_angle = State(2) + Input;
 
-[t, traj] = ode45(@(t, x) stance_dynamics(t, x, Parameters), ...
-    [0, Parameters.TMax], stance, options);
+[t, stance_traj] = ode45(@(t, x) stance_dynamics(t, x, Parameters), ...
+    0:0.001:Parameters.TMax, stance, options);
 
-final_stance_state = traj(end, :)';
+final_stance_state = stance_traj(end, :)';
 init_flight_state = stance_to_flight(final_stance_state, Parameters);
 
-options = odeset('Events', @(t, x) flight_events(t, x, Input, Parameters));
+if t(end) == Parameters.TMax || (Falling && (init_flight_state(3) < 0 || init_flight_state(4) < 0))
+    next_state = nan(5, 1);
+    return;
+end
 
-[t, traj] = ode45(@(t, x) flight_dynamics(t, x, Parameters), ...
-    [t(end), Parameters.TMax], init_flight_state, options);
+options = odeset('Events', @(t, x) flight_events(t, x, td_angle, Parameters));
 
-final_flight_state = traj(end, :)';
-next_stance = flight_to_stance(final_flight_state, Input, Parameters);
+[t, flight_traj] = ode45(@(t, x) flight_dynamics(t, x, Parameters), ...
+    t(end):0.001:Parameters.TMax, init_flight_state, options);
 
-next_state = [State(1) + final_flight_state(1); next_stance];
+final_flight_state = flight_traj(end, :)';
+next_stance = flight_to_stance(final_flight_state, td_angle, Parameters);
+
+next_state = [State(1) + final_flight_state(1); next_stance(2:4)];
+
+if nargout == 2
+    head_traj = zeros(size(stance_traj, 1), 4);
+    first_flight = stance_to_flight(stance_traj(1, :), Parameters);
+    
+    for i = 1:size(stance_traj, 1)
+        head_traj(i, :) = stance_to_flight(stance_traj(i, :), Parameters);
+    end
+    
+    head_traj = [head_traj(:, 1:2)' flight_traj(:, 1:2)'];
+    head_traj(1, :) = head_traj(1, :) + State(1) - first_flight(1);
+end
 
 end
 
 function [value, isterminal, direction] = stance_events(t, x, Parameters)
-    r0 = Parameters.TouchdownRadius;
 
-    value = x(1) - r0;
-    isterminal = true;
-    direction = 1;
+value = double(x(1) > Parameters.TouchdownRadius && x(3) > 0);
+isterminal = true;
+direction = 0;
+
 end
 
 function [value, isterminal, direction] = flight_events(t, x, u, Parameters)
-    r0 = Parameters.TouchdownRadius;
-    theta0 = u;
 
-    value = x(2) - r0 * cos(theta0);
-    isterminal = true;
-    direction = -1;
+value = double(x(2) < Parameters.TouchdownRadius * cos(u) && x(4) < 0);
+isterminal = true;
+direction = 0;
+
 end
 
 % === Flight-to-stance dynamics ===================

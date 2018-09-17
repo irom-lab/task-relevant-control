@@ -43,11 +43,11 @@ classdef (Abstract) ContControlProblem < ControlProblem
             costs(end) = terminal_cost(Obj, traj(:, end));
         end
         
-        [ traj, cum_cost ] = sim_meas_uncertainty(Obj, init, horizon)
+        [ traj, inputs, cum_cost ] = sim_meas_uncertainty(Obj, init, horizon)                
         
-        [ controller, obj_val, obj_hist ] = solve_info_ilqr(Obj)
+        [controller, obj_val, obj_hist, best_expected_cost, best_mi, mean_traj, mean_inputs]  = solve_info_ilqr(Obj)
         
-        [ controller, obj_val, obj_hist ] = solve_info_lqg(Obj)
+        [controller, obj_val, obj_hist, best_expected_cost, best_mi, mean_traj, mean_inputs] = solve_info_lqg(Obj)
     end
     
     

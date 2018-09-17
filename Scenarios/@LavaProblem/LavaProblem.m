@@ -18,7 +18,7 @@ classdef LavaProblem < DiscControlProblem
             costs(Obj.Parameters.Goal + 1, 1) = -5;
             costs((Obj.Parameters.Goal + 2):end, 1) = 1;
             
-            costs(Obj.Parameters.Goal, 2) = -3;
+            costs(Obj.Parameters.Goal, 2) = -5;
             
             costs(1:(Obj.Parameters.Goal - 2), 3) = 1;
             costs(Obj.Parameters.Goal - 1, 3) = -5;

@@ -7,16 +7,16 @@ function [A, B] = linearize(Obj, State, Input, t)
     for i = 1:Obj.Parameters.NStates
         x = State;
         x(i) = x(i) + delta;
-        forward = dynamics(Obj, x, Input);
+        forward = dynamics(Obj, x, Input, t);
         
         x = State;
         x(i) = x(i) - delta;
-        reverse = dynamics(Obj, x, Input);
+        reverse = dynamics(Obj, x, Input, t);
         
         A(:, i) = (forward - reverse) / (2 * delta);
     end
     
-    forward = dynamics(Obj, State, Input + delta);
-    reverse = dynamics(Obj, State, Input - delta);
+    forward = dynamics(Obj, State, Input + delta, t);
+    reverse = dynamics(Obj, State, Input - delta, t);
     B = (forward - reverse) / (2 * delta);
 end
