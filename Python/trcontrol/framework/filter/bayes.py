@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Union
 from scipy.stats import rv_discrete, rv_continuous
 
+
 class BayesFilter(ABC):
     def __init__(self, init_dist: Union[rv_discrete, rv_continuous], init_meas) -> None:
         self._belief = self.measurement_update(init_dist, init_dist, init_meas)

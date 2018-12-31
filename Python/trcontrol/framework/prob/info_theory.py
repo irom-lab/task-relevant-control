@@ -1,25 +1,14 @@
 import numpy as np
 import cvxpy as cvx
-import scipy.stats as sps
+from typing import Union, Callable
+from trcontrol.framework.prob import dists
 
 
-def kl_disc(a: np.array, b: np.array) -> float:
+
+def mi(x: np.array, channel: Callable[[Union[dists.FiniteDist, dists.GaussianDist]], Union[dists.FiniteDist, dists.GaussianDist]]) -> float:
     '''
-    Computes the kl divergence between two distributions
-    '''
-    return np.sum(a * np.log(a / b), axis=None)
-
-def kl_gauss(a: sps.multivariate_normal, b: sps.multivariate_normal) -> float:
-    '''
-    Computes the kl divergence between two distributions
-    '''
-    return (1 / 2) * ((a.cov ) )
-
-
-
-def mi(x: np.array, y_given_x: np.array) -> float:
-    '''
-    Computes the mutual information between random variables X, Y in the Markov Chain X -> Y.
+    Computes the mutual information between random variables X, Y in the Markov Chain X -> Y where X, Y are either both
+    finite or Gaussian random variables.
     '''
     y_x = y_given_x * x
     y = np.sum(y_x, axis=1)

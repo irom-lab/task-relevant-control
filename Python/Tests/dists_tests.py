@@ -27,11 +27,5 @@ class FiniteDistTests(unittest.TestCase):
         self.assertEqual(dist.pmf(500), 0)
         self.assertTrue(np.allclose(dist.pmf(), pmf))
 
-    def test_mle(self):
-        pmf = np.array([0.2, 0.39, 0.41])
-        dist = dists.FiniteDist(pmf)
-
-        self.assertEqual(dist.mle(), 2)
-
 if __name__ == '__main__':
     unittest.main()
