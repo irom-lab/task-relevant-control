@@ -23,9 +23,37 @@ class FiniteDistTests(unittest.TestCase):
         for i in range(3):
             self.assertEqual(dist.pmf(i), pmf[i])
 
-        self.assertEqual(dist.pmf(-1), 0)
-        self.assertEqual(dist.pmf(500), 0)
         self.assertTrue(np.allclose(dist.pmf(), pmf))
+
+    def test_numel(self):
+        pmf = np.array([0.2, 0.4, 0.4])
+        dist = dists.FiniteDist(pmf)
+
+        for i in range(3):
+            self.assertEqual(dist.pmf(i), pmf[i])
+
+        self.assertEqual(dist.numel(), 3)
+
+
+# The class GaussianDist is really just a wrapper, so I'm
+# skipping writing tests for now.
+class GaussianDistTests(unittest.TestCase):
+    pass
+
+
+class KLTests(unittest.TestCase):
+    def test_discrete(self):
+        pmf1 = np.array([0.36, 0.48, 0.16])
+        pmf2 = np.array([1, 1, 1]) / 3
+
+        dist1 = dists.FiniteDist(pmf1)
+        dist2 = dists.FiniteDist(pmf2)
+
+        self.assertAlmostEqual(dists.kl(dist1, dist2), 0.0852996)
+        self.assertAlmostEqual(dists.kl(dist2, dist1), 0.097455)
+
+    def test_gaussian(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
