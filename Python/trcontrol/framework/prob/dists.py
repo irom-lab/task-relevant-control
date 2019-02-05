@@ -140,7 +140,7 @@ class FiniteDist(DiscreteDist):
         :raises: ValueError
         """
         if val is None:
-            if shape is None: shape = (self._pmf.size, 1)
+            if shape is None: shape = (self._pmf.size)
             return self._pmf.copy().reshape(shape)
         else:
             if shape is not None:
@@ -150,7 +150,7 @@ class FiniteDist(DiscreteDist):
                 return self._pmf[val]
             else:
                 raise ValueError('Input value does not correspond to an element of support (should be an integer '
-                                 'between 0 and {}'.format(self.numel()))
+                                 'between 0 and {})'.format(self.numel()))
 
     def numel(self) -> int:
         """
