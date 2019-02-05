@@ -96,7 +96,7 @@ class DiscreteChannel:
 
         :param chan_input: A finite distribution over a set of size n.
         :return: A finite distribution over a set of size n * m. The probability of the event {X = i, Y = j} can be
-        accessed using a pmf method call with val=(j, i), shape=(m, n).
+        accessed using a pmf method call with val=(i, j), shape=(m, n).
         """
         return dists.FiniteDist((self._y_given_x * chan_input.pmf()).flatten())
 
@@ -128,9 +128,9 @@ class DiscreteChannel:
         :return: A finite distribution over n elements representing the posterior distribution over X.
         """
 
-        return (self._y_given_x * np.reshape(prior.pmf(), (-1, 1))) / self.marginal(prior).pmf(output)
+        return dists.FiniteDist((self._y_given_x[output, :] * prior.pmf()) / self.marginal(prior).pmf(output))
 
-    def mutual_info(self, chan_input: dists.FiniteDist) -> float:
+    def mutual_info(self, chan_input: dists.FiniteDist, base: float='e') -> float:
         """
         Calculates the mutual information between X and Y.
 
@@ -139,9 +139,21 @@ class DiscreteChannel:
         """
         n, m = self._y_given_x.shape
         joint = self.joint(chan_input).pmf(shape=(n, m))
-        cond = self.marginal(chan_input).pmf()
+        marginal = self.marginal(chan_input).pmf()
 
-        return (joint * np.log(joint / (cond.reshape((-1, 1)) * chan_input.pmf()))).sum(axis=None)
+        inside_log = joint / (marginal.reshape((-1, 1)) * chan_input.pmf())
+        nonzeros = inside_log != 0
+
+        pointwise = np.zeros((n, m))
+
+        if base == 'e':
+            pointwise[nonzeros] = joint[nonzeros] * np.log(inside_log[nonzeros])
+        elif base == 2:
+            pointwise[nonzeros] = joint[nonzeros] * np.log2(inside_log[nonzeros])
+        else:
+            raise TypeError("Currently only handles base=2 or base='e'.")
+
+        return pointwise.sum()
 
     def chan_capacity(self) -> float:
         """

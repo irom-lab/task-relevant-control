@@ -144,7 +144,7 @@ class FiniteDist(DiscreteDist):
             return self._pmf.copy().reshape(shape)
         else:
             if shape is not None:
-                val = np.unravel_index(val, shape)
+                val = np.ravel_multi_index(val, shape)
 
             if 0 <= val <= self._pmf.size:
                 return self._pmf[val]
