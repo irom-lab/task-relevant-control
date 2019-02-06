@@ -1,29 +1,27 @@
 from abc import ABC, abstractmethod
-from typing import Union
-from scipy.stats import rv_discrete, rv_continuous
+import trcontrol.framework.prob.dists as dists
 
 
 class BayesFilter(ABC):
-    def __init__(self, init_dist: Union[rv_discrete, rv_continuous], init_meas) -> None:
+    def __init__(self, init_dist: dists.Distribution, init_meas) -> None:
         self._belief = self.measurement_update(init_dist, init_dist, init_meas)
 
-    @property
-    def belief(self) -> Union[rv_discrete, rv_continuous]:
+    def belief(self) -> dists.Distribution:
         return self._belief
 
     @abstractmethod
-    def process_update(self, belief: Union[rv_discrete, rv_continuous]) -> Union[rv_discrete, rv_continuous]:
+    def process_update(self, belief: dists.Distribution) -> dists.Distribution:
         pass
 
     @abstractmethod
-    def measurement_update(self, state_dist: Union[rv_discrete, rv_continuous], proc_belief: Union[rv_discrete, rv_continuous], meas) -> Union[rv_discrete, rv_continuous]:
+    def measurement_update(self, state_dist: dists.Distribution,
+                           proc_belief: dists.Distribution, meas) -> dists.Distribution:
         pass
 
-    @property
     @abstractmethod
     def mle(self):
         pass
 
-    def iterate(self, state_dist: Union[rv_discrete, rv_continuous], meas):
-        proc_belief = self.process_update(self.belief)
-        self.measurement_update(state_dist, proc_belief, meas)
+    def iterate(self, meas):
+        proc_belief = self.process_update(self._belief)
+        self._belief = self.measurement_update(proc_belief, meas)
