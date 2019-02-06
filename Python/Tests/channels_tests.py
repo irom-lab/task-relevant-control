@@ -63,12 +63,35 @@ class LGChannelTests(unittest.TestCase):
         pass
 
     def test_posterior(self):
-        channel = channels.LGChannel(np.array([np.cos(np.pi / 6), np.sin(np.pi / 6)]),
-                                     np.ones((1)), np.eye(1))
-        input = dists.GaussianDist(np.array([1, 1,]), np.array([[2 ** 2, 0], [0, 0.5 ** 2]]))
+        np.random.seed(0)
 
-        input.
-        posterior = channel.posterior(input, )
+        # This example is taken from the end of: http://web.stanford.edu/class/ee363/lectures/estim.pdf
+        channel = channels.LGChannel(np.array([[np.cos(np.pi / 6), np.sin(np.pi / 6)]]),
+                                     np.ones((1)), np.eye(1))
+        input = dists.GaussianDist(np.array([1, 1]), np.array([[2 ** 2, 0], [0, 0.5 ** 2]]))
+
+        sample_input = input.sample()
+        conditional = channel.conditional(sample_input)
+        sample_output = conditional.sample()
+
+        posterior = channel.posterior(input, sample_output)
+
+        self.assertTrue(np.allclose(posterior.cov(), np.array([[1.046, -0.107],
+                                                               [-0.107, 0.246]]), atol=0.01))
+
+        # One more time with a different channel to test the mean
+
+        channel = channels.LGChannel(np.array([[np.cos(i * np.pi / 12), np.sin(i * np.pi / 12)] for i in range(24)]),
+                                     np.ones((24)), np.eye(24))
+        input = dists.GaussianDist(np.array([1, 1]), np.array([[2 ** 2, 0], [0, 0.5 ** 2]]))
+
+        sample_input = input.sample()
+        conditional = channel.conditional(sample_input)
+        sample_output = conditional.sample()
+
+        posterior = channel.posterior(input, sample_output)
+
+        self.assertTrue(np.allclose(posterior.mean(), sample_input.flatten(), atol=0.6))
 
 
     def test_mutual_info(self):

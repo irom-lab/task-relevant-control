@@ -3,6 +3,7 @@ from scipy.stats import multivariate_normal
 from abc import ABC, abstractmethod
 from typing import Union, Tuple, Optional
 
+
 class Distribution(ABC):
     """
     An abstract base class representing a distribution.
@@ -54,7 +55,7 @@ class Distribution(ABC):
         pass
 
     @abstractmethod
-    def sample(self, n: int=1) -> Union[int, float, np.ndarray]:
+    def sample(self, n: int = 1) -> Union[int, float, np.ndarray]:
         """
         Samples n points from the distribution
         :param n: Number of points to sample (default is 1)
@@ -90,7 +91,7 @@ class DiscreteDist(Distribution):
         pass
 
     @abstractmethod
-    def sample(self, n: int=1) -> Union[int, np.ndarray]:
+    def sample(self, n: int = 1) -> Union[int, np.ndarray]:
         pass
 
 
@@ -105,7 +106,7 @@ class ContinuousDist(Distribution):
     def __init__(self):
         super().__init__()
 
-    def pmf(self, val: Optional[int]=None): raise NotImplementedError('Continuous distributions do not have PMFs.')
+    def pmf(self, val: Optional[int] = None): raise NotImplementedError('Continuous distributions do not have PMFs.')
 
     @abstractmethod
     def pdf(self, val: np.ndarray) -> float:
@@ -120,8 +121,9 @@ class ContinuousDist(Distribution):
         pass
 
     @abstractmethod
-    def sample(self, n: int=1) -> Union[float, np.ndarray]:
+    def sample(self, n: int = 1) -> Union[float, np.ndarray]:
         pass
+
 
 class FiniteDist(DiscreteDist):
     """
@@ -140,8 +142,8 @@ class FiniteDist(DiscreteDist):
         super().__init__()
         self._pmf = pmf / pmf.sum()
 
-    def pmf(self, val: Union[int, Tuple[int, ...]]=None, shape: Optional[Tuple[int, ...]]=None) -> Union[float,
-                                                                                                      np.ndarray]:
+    def pmf(self, val: Union[int, Tuple[int, ...]] = None, shape: Optional[Tuple[int, ...]] = None) -> Union[float,
+                                                                                                             np.ndarray]:
         """
         Returns the probability mass associated with an index. Supports multi-coordinate indexing.
 
@@ -182,7 +184,7 @@ class FiniteDist(DiscreteDist):
     def cov(self) -> float:
         return (np.arange(self.numel()) ** 2) @ self._pmf - self.mean() ** 2
 
-    def sample(self, n: int=1) -> Union[int, np.ndarray]:
+    def sample(self, n: int = 1) -> Union[int, np.ndarray]:
         rands = np.random.rand(n)
         cum = np.cumsum(self._pmf)
 
@@ -197,9 +199,6 @@ class FiniteDist(DiscreteDist):
             return ret
 
 
-
-
-
 class GaussianDist(ContinuousDist):
     def __init__(self, mean: np.ndarray, cov: np.ndarray) -> None:
         super().__init__()
@@ -212,16 +211,17 @@ class GaussianDist(ContinuousDist):
     def dim(self) -> int:
         return self._mean.size
 
-    def mean(self) -> np.ndarray: return self._mean
+    def mean(self) -> np.ndarray:
+        return self._mean
 
-    def cov(self) -> np.ndarray: return self._cov
+    def cov(self) -> np.ndarray:
+        return self._cov
 
-    def sample(self, n: int=1) -> Union[float, np.ndarray]:
+    def sample(self, n: int = 1) -> Union[float, np.ndarray]:
         if self.dim() == 1:
             return np.random.normal(self._mean[0], np.sqrt(self._cov[0]), n)
         else:
             return np.random.multivariate_normal(self._mean, self._cov, n).transpose()
-
 
 
 def kl(a: Union[FiniteDist, GaussianDist], b: Union[FiniteDist, GaussianDist]) -> float:

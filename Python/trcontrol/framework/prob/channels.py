@@ -194,6 +194,13 @@ class LGChannel(Channel):
         :param affine: The affine term, b, which is a size m vector or m-by-1 array.
         :param cov: The covariance of eta, which is an m-by-m array.
         """
+        if linear.ndim != 2:
+            raise ValueError('The linear component must be 2D.')
+
+        if affine.ndim > 2 or (affine.ndim == 2 and affine.shape[1] != 1):
+            raise ValueError('The affine component must be 1D or a m-by-1 vector.')
+
+
         super().__init__()
         self._A = linear.copy()
         self._b = affine.flatten()
@@ -209,7 +216,7 @@ class LGChannel(Channel):
         mean = self._A @ chan_input.mean() + self._b
         cov = self._A @ chan_input.cov() @ self._A.transpose() + self._cov
 
-        return dists.GaussianDist(np.block([chan_input.mean(), mean]), np.block([[chan_input.cov(), input.cov() @ self._A.transpose()],
+        return dists.GaussianDist(np.block([chan_input.mean(), mean]), np.block([[chan_input.cov(), chan_input.cov() @ self._A.transpose()],
                                                                                  [self._A.transpose() @ chan_input.cov(), cov]]))
 
     def conditional(self, chan_input: np.ndarray) -> dists.GaussianDist:
@@ -219,7 +226,7 @@ class LGChannel(Channel):
         :param chan_input: The integer x.
         :return: A Gaussian distribution over a set of size m representing the resulting distribution of Y.
         """
-        mean = self._A @ chan_input + self._b
+        mean = self._A @ chan_input.flatten() + self._b
         cov = self._cov
 
         return dists.GaussianDist(mean, cov)
@@ -245,11 +252,11 @@ class LGChannel(Channel):
         :return: A finite distribution over n elements representing the posterior distribution over X.
         """
 
-        B = prior.cov() @ self._A.transpose() @ np.linalg.inv(self._A @ prior.cov() @ self._A.transpose())
+        B = prior.cov() @ self._A.transpose() @ np.linalg.inv(self._A @ prior.cov() @ self._A.transpose() + self._cov)
 
         output_mean = self._A @ prior.mean() + self._b
 
-        return dists.GaussianDist(prior.mean() + B @ (output - output_mean),
+        return dists.GaussianDist(prior.mean() + B @ (output.flatten() - output_mean),
                                   np.linalg.inv(self._A.transpose() @ np.linalg.inv(self._cov) @ self._A +
                                                 np.linalg.inv(prior.cov())))
 
