@@ -52,6 +52,27 @@ class DiscreteChannelTests(unittest.TestCase):
     def test_channel_capacity(self):
         pass
 
+class LGChannelTests(unittest.TestCase):
+    def test_joint(self):
+        pass
+
+    def test_conditional(self):
+        pass
+
+    def test_marginal(self):
+        pass
+
+    def test_posterior(self):
+        channel = channels.LGChannel(np.array([np.cos(np.pi / 6), np.sin(np.pi / 6)]),
+                                     np.ones((1)), np.eye(1))
+        input = dists.GaussianDist(np.array([1, 1,]), np.array([[2 ** 2, 0], [0, 0.5 ** 2]]))
+
+        input.
+        posterior = channel.posterior(input, )
+
+
+    def test_mutual_info(self):
+        pass
 
 
 if __name__ == '__main__':

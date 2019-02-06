@@ -49,9 +49,30 @@ class FiniteDistTests(unittest.TestCase):
 
 
 # The class GaussianDist is really just a wrapper, so I'm
-# skipping writing tests for now.
+# skipping writing most tests for now.
 class GaussianDistTests(unittest.TestCase):
-    pass
+    def test_sample(self):
+        np.random.seed(0)
+        n = 100000
+        dist1 = dists.GaussianDist(np.ones(1), 2 * np.eye(1))
+        dist2 = dists.GaussianDist(np.zeros((3, 1)), np.eye(3))
+
+        samples = dist1.sample(n)
+        mean = samples.sum() / n
+        var = (1 / n) * ((samples - mean) ** 2).sum()
+
+        self.assertAlmostEqual(mean, 1, 2)
+        self.assertAlmostEqual(var, 2, 1)
+
+        samples = dist2.sample(n)
+        mean = samples.sum(axis=1) / n
+
+        deviation = samples - (mean.reshape((3, 1)) @ np.ones((1, n)))
+        cov = (1 / (n - 1)) * (deviation @ deviation.transpose())
+
+        self.assertTrue(np.allclose(mean, np.zeros((3, 1)), atol=0.01))
+        self.assertTrue(np.allclose(cov, np.eye(3), atol=0.01))
+
 
 
 class KLTests(unittest.TestCase):

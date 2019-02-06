@@ -206,12 +206,11 @@ class LGChannel(Channel):
         :param chan_input: The Gaussian distribution of X.
         :return: A the Gaussian distribution of (X, Y) with n + m variables.
         """
-        (m, n) = self._A.shape
         mean = self._A @ chan_input.mean() + self._b
         cov = self._A @ chan_input.cov() @ self._A.transpose() + self._cov
 
-        return dists.GaussianDist(np.block([chan_input.mean(), mean]), np.block([[cov, np.zeros((n, m))],
-                                                                                 [np.zeros((m, n)), cov]]))
+        return dists.GaussianDist(np.block([chan_input.mean(), mean]), np.block([[chan_input.cov(), input.cov() @ self._A.transpose()],
+                                                                                 [self._A.transpose() @ chan_input.cov(), cov]]))
 
     def conditional(self, chan_input: np.ndarray) -> dists.GaussianDist:
         """

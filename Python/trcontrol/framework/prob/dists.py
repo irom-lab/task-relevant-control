@@ -216,8 +216,12 @@ class GaussianDist(ContinuousDist):
 
     def cov(self) -> np.ndarray: return self._cov
 
-    def sample(self, n:int=1) -> Union[float, np.ndarray]:
-        pass
+    def sample(self, n: int=1) -> Union[float, np.ndarray]:
+        if self.dim() == 1:
+            return np.random.normal(self._mean[0], np.sqrt(self._cov[0]), n)
+        else:
+            return np.random.multivariate_normal(self._mean, self._cov, n).transpose()
+
 
 
 def kl(a: Union[FiniteDist, GaussianDist], b: Union[FiniteDist, GaussianDist]) -> float:
