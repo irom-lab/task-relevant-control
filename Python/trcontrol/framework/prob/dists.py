@@ -3,7 +3,6 @@ from scipy.stats import multivariate_normal
 from abc import ABC, abstractmethod
 from typing import Union, Tuple, Optional
 
-
 class Distribution(ABC):
     """
     An abstract base class representing a distribution.
@@ -54,6 +53,16 @@ class Distribution(ABC):
         """
         pass
 
+    @abstractmethod
+    def sample(self, n: int=1) -> Union[int, float, np.ndarray]:
+        """
+        Samples n points from the distribution
+        :param n: Number of points to sample (default is 1)
+        :return: If n = 1, returns the value of the sample.
+            When n > 1, returns an ndarray containing the samples
+        """
+        pass
+
 
 class DiscreteDist(Distribution):
     """
@@ -78,6 +87,10 @@ class DiscreteDist(Distribution):
 
     @abstractmethod
     def cov(self) -> float:
+        pass
+
+    @abstractmethod
+    def sample(self, n: int=1) -> Union[int, np.ndarray]:
         pass
 
 
@@ -106,6 +119,9 @@ class ContinuousDist(Distribution):
     def cov(self) -> Union[float, np.ndarray]:
         pass
 
+    @abstractmethod
+    def sample(self, n: int=1) -> Union[float, np.ndarray]:
+        pass
 
 class FiniteDist(DiscreteDist):
     """
@@ -166,6 +182,23 @@ class FiniteDist(DiscreteDist):
     def cov(self) -> float:
         return (np.arange(self.numel()) ** 2) @ self._pmf - self.mean() ** 2
 
+    def sample(self, n: int=1) -> Union[int, np.ndarray]:
+        rands = np.random.rand(n)
+        cum = np.cumsum(self._pmf)
+
+        if n == 1:
+            return np.argmax(rands <= cum)
+        else:
+            ret = np.zeros(n)
+
+            for i in range(n):
+                ret[i] = np.argmax(rands[i] <= cum)
+
+            return ret
+
+
+
+
 
 class GaussianDist(ContinuousDist):
     def __init__(self, mean: np.ndarray, cov: np.ndarray) -> None:
@@ -182,6 +215,9 @@ class GaussianDist(ContinuousDist):
     def mean(self) -> np.ndarray: return self._mean
 
     def cov(self) -> np.ndarray: return self._cov
+
+    def sample(self, n:int=1) -> Union[float, np.ndarray]:
+        pass
 
 
 def kl(a: Union[FiniteDist, GaussianDist], b: Union[FiniteDist, GaussianDist]) -> float:

@@ -34,6 +34,19 @@ class FiniteDistTests(unittest.TestCase):
 
         self.assertEqual(dist.numel(), 3)
 
+    def test_sample(self):
+        np.random.seed(0)
+        pmf = np.array([0.2, 0.4, 0.4])
+        dist = dists.FiniteDist(pmf)
+        n = 10000
+
+        samples = dist.sample(n)
+        sample_dist = np.array([(samples == 0).sum() / n,
+                                (samples == 1).sum() / n,
+                                (samples == 2).sum() / n])
+
+        self.assertTrue(np.allclose(sample_dist, pmf, atol=1e-2))
+
 
 # The class GaussianDist is really just a wrapper, so I'm
 # skipping writing tests for now.
