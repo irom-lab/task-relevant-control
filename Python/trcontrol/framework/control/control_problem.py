@@ -29,18 +29,41 @@ class DSCProblem(ControlProblem):
 
     @abstractmethod
     def create_dynamics(self) -> np.ndarray:
+        """
+        This function populates an n-by-n-by-m array describing the system dynamics. The entry at (i, j, k) is the
+        probability of transitioning from state j to state i via input k.
+
+        :return: The dynamics array.
+        """
         pass
 
     @abstractmethod
     def create_sensor(self) -> np.ndarray:
+        """
+        This function populates an l-by-n array describing the sensor model. The entry at (i, j) describes
+        the probability of observing output i when the system is in state j.
+
+        :return: The sensor array.
+        """
         pass
 
     @abstractmethod
     def create_costs(self) -> np.ndarray:
+        """
+        This function populates the cost model for the problem. The cost model is represented by an n-by-m array where
+        the entry at (i, j) describes the cost of using input j in state i.
+
+        :return: The cost model array.
+        """
         pass
 
     @abstractmethod
     def create_terminal_costs(self) -> np.ndarray:
+        """
+        This function populates the terminal cost model for the problem. This model is represented by a one dimensional
+        array of size n, where the i-th entry describes the cost of terminating in state i.
+        :return:
+        """
         pass
 
     @property
@@ -75,7 +98,7 @@ class DSCProblem(ControlProblem):
         traj[0] = init_dist.sample()
         meas = sensor_channel.marginal(traj[0]).sample()
 
-        bf = DiscreteFilter(self, init_dist, meas)
+        bf = DiscreteFilter(self._dynamics, self._policy, self._sensor, init_dist, meas)
 
         for t in range(horizon):
             input_dist = dists.FiniteDist(self.policy[:, bf.mle()])
@@ -111,3 +134,6 @@ class DSCProblem(ControlProblem):
             policy[input_idx[i], i] = 1
 
         return policy, values
+
+class CSCProblem(ControlProblem):
+    pass
