@@ -8,8 +8,8 @@ import trcontrol.framework.prob.channels as channels
 
 class DiscreteFilter(BayesFilter):
     def __init__(self, dscp: DSCProblem, init_dist: dists.Distribution, init_meas: int) -> None:
-        self._dscp = dscp
         super().__init__(init_dist, init_meas)
+        self._dscp = dscp
 
     def mle(self) -> int:
         return np.argmax(self._belief.pmf())
