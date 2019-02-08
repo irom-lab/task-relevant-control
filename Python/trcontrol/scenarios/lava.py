@@ -2,7 +2,7 @@ import numpy as np
 from trcontrol.framework.control.control_problem import DSCProblem
 
 
-class Gaze(DSCProblem):
+class Lava(DSCProblem):
     def __init__(self, length, goal):
         self._length = length
         self._goal = goal
