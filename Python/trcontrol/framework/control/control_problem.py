@@ -21,7 +21,7 @@ class DSCProblem(ControlProblem):
         self._dynamics = self.create_dynamics()
         (n, m, _) = self._dynamics.shape
 
-        self._policy = np.zeros(m, n)
+        self._policy = np.zeros((m, n))
         self._sensor = self.create_sensor()
         self._costs = self.create_costs()
         self._terminal_costs = self.create_terminal_costs()
@@ -121,14 +121,14 @@ class DSCProblem(ControlProblem):
         (n, _, m) = dynamics.shape
 
         values = np.zeros(n)
-        input_idx = np.zeros(n)
-        policy = np.zeros(m, n)
+        input_idx = np.zeros(n, dtype=int)
+        policy = np.zeros((m, n))
 
         for itr in range(iters):
             for i in range(n):
                 possible_future_costs = values @ dynamics[:, i, :] + costs[i, :]
                 input_idx[i] = possible_future_costs.argmin()
-                values[i] = possible_future_costs[input_idx]
+                values[i] = possible_future_costs[input_idx[i]]
 
         for i in range(n):
             policy[input_idx[i], i] = 1
