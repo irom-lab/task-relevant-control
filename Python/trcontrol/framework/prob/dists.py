@@ -235,7 +235,9 @@ def kl(a: Union[FiniteDist, GaussianDist], b: Union[FiniteDist, GaussianDist]) -
     """
 
     if type(a) is FiniteDist and type(b) is FiniteDist:
-        return (a.pmf() * np.log(a.pmf() / b.pmf())).sum(axis=None)
+        nonzeros = a.pmf() > 0
+
+        return (a.pmf()[nonzeros] * np.log(a.pmf()[nonzeros] / b.pmf()[nonzeros])).sum(axis=None)
     elif type(a) is GaussianDist and type(b) is GaussianDist:
         b_cov_inv = np.linalg.inv(b.cov())
 
