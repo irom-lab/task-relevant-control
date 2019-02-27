@@ -11,7 +11,7 @@ Parameters.Goal = 3;
 Parameters.Horizon = 5;
 Parameters.MeasurementRate = 0.5;
 
-SolverOptions.Tradeoff = 0.01;
+SolverOptions.Tradeoff = 20;
 SolverOptions.Iters = 100;
 SolverOptions.NumCodewords = 5;
 SolverOptions.FixedCodeMap = false;
@@ -30,4 +30,6 @@ controller = solve_exact(Problem);
 Problem.SolverOptions.InitPolicy.CodeGivenState = repmat(eye(5), 1, 1, 5);
 Problem.SolverOptions.InitPolicy.InputGivenCode = controller.Policy;
 
+tic;
 solve_info(Problem)
+toc
