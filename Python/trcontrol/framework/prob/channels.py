@@ -95,7 +95,7 @@ class DiscreteChannel:
         Computes the joint distribution for (X, Y).
 
         :param chan_input: A finite distribution over a set of size n.
-        :return: A finite distribution over a set of size n * m. The probability of the event {X = i, Y = j} can be
+        :return: A finite distribution over a set of size n * m. The probability of the event {Y = i, X = j} can be
         accessed using a pmf method call with val=(i, j), shape=(m, n).
         """
         return dists.FiniteDist((self._y_given_x * chan_input.pmf()).flatten())

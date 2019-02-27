@@ -14,7 +14,7 @@ Init.mean = [0.01; -0.01; 0.01];
 Init.cov = 0.001 * eye(3);
 Parameters.MeasCov = believed_meas_cov_scale * eye(3);
 Parameters.ProcCov = 0.01 * diag([0.01; 0.05; 0.05]);
-Parameters.Horizon = 5;
+Parameters.Horizon = 10;
 Parameters.Goals = zeros(3, Parameters.Horizon + 1);
 Parameters.NomInputs = zeros(1, Parameters.Horizon);
 
@@ -48,7 +48,7 @@ Parameters.NInputs = 1;
 SolverOptions.Tradeoff = 10;
 SolverOptions.NumCodewords = 3;
 SolverOptions.FixedCodeMap = false;
-SolverOptions.Iters = 12;
+SolverOptions.Iters = 11;
 
 samples = 500;
 
@@ -171,6 +171,8 @@ scatter(1:size(c2(:, successes2), 1), mean(c2(:, successes2), 2), 'b', 'filled')
 scatter(1:size(c3(:, successes3), 1), mean(c3(:, successes3), 2), 'r', 'filled');
 
 legend([h1 h2 h3], {'Incorrect Covariance LQG', 'Correct Covariance LQG', 'Incorrect Covariance TRV'});
+
+%%
 
 set(gcf,'Units','inches');
 screenposition = get(gcf,'Position');

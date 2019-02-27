@@ -1,13 +1,53 @@
 import numpy as np
-from abc import ABC, abstractmethod
-from trcontrol.framework.filter.discrete import DiscreteFilter
 import trcontrol.framework.prob.dists as dists
 import trcontrol.framework.prob.channels as channels
 
+from abc import ABC, abstractmethod
+from trcontrol.framework.filter.discrete import DiscreteFilter
+from trcontrol.framework.prob.dists import Distribution
 
 class ControlProblem(ABC):
-    def __init__(self) -> None:
+    def __init__(self, init_dist: Distribution, horizon: int) -> None:
+        self._init_dist = init_dist
+        self._horizon = horizon
+
+    @property
+    @abstractmethod
+    def dynamics(self) -> np.ndarray:
         pass
+
+    @property
+    @abstractmethod
+    def sensor(self) -> np.ndarray:
+        pass
+
+    @property
+    @abstractmethod
+    def costs(self) -> np.ndarray:
+        pass
+
+    @property
+    @abstractmethod
+    def terminal_costs(self) -> np.ndarray:
+        pass
+
+    @property
+    @abstractmethod
+    def policy(self) -> np.ndarray:
+        pass
+
+    @property
+    @abstractmethod
+    def state_dist(self) -> np.ndarray:
+        pass
+
+    @property
+    def init_dist(self) -> Distribution:
+        return self._init_dist
+
+    @property
+    def horizon(self):
+        return self._horizon
 
     @abstractmethod
     def simulate(self, init: dists.Distribution, horizon: int) -> (np.ndarray, np.ndarray):
@@ -15,8 +55,8 @@ class ControlProblem(ABC):
 
 
 class DSCProblem(ControlProblem):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, init_dist: dists.FiniteDist, horizon: int):
+        super().__init__(init_dist, horizon)
 
         self._dynamics = self.create_dynamics()
         (n, m, _) = self._dynamics.shape
@@ -75,7 +115,7 @@ class DSCProblem(ControlProblem):
         return self._sensor
 
     @property
-    def costs(self):
+    def costs(self) -> np.ndarray:
         return self._costs
 
     @property
@@ -89,6 +129,10 @@ class DSCProblem(ControlProblem):
     @property
     def state_dist(self) -> np.ndarray:
         return self._state_dist
+
+    @property
+    def init_dist(self) -> dists.FiniteDist:
+        return self._init_dist
 
     def simulate(self, init_dist: dists.FiniteDist, horizon: int) -> (np.ndarray, np.ndarray):
         traj = np.zeros(horizon + 1)
@@ -115,23 +159,22 @@ class DSCProblem(ControlProblem):
 
         return traj, costs
 
-    def solve_value_iter(self, iters: int = 100) -> (np.ndarray, np.ndarray):
+    def solve_value_iter(self, horizon: int) -> (np.ndarray, np.ndarray):
         costs = self.costs
         dynamics = self.dynamics
         (n, _, m) = dynamics.shape
 
-        values = np.zeros(n)
-        input_idx = np.zeros(n, dtype=int)
-        policy = np.zeros((m, n))
+        values = np.zeros((n, horizon + 1))
+        values[:, -1] = self._terminal_costs
 
-        for itr in range(iters):
+        policy = np.zeros((m, n, horizon))
+
+        for t in range(horizon - 1, -1, -1):
             for i in range(n):
-                possible_future_costs = values @ dynamics[:, i, :] + costs[i, :]
-                input_idx[i] = possible_future_costs.argmin()
-                values[i] = possible_future_costs[input_idx[i]]
-
-        for i in range(n):
-            policy[input_idx[i], i] = 1
+                possible_future_costs = values[:, t + 1] @ dynamics[:, i, :] + costs[i, :]
+                input_idx = possible_future_costs.argmin()
+                values[i, t] = possible_future_costs[input_idx]
+                policy[input_idx, i, t] = 1
 
         return policy, values
 

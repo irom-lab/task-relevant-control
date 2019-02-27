@@ -1,7 +1,7 @@
 import numpy as np
-from trcontrol.framework.filter.bayes import BayesFilter
 import trcontrol.framework.prob.dists as dists
 import trcontrol.framework.prob.channels as channels
+from trcontrol.framework.filter.bayes import BayesFilter
 
 
 class DiscreteFilter(BayesFilter):

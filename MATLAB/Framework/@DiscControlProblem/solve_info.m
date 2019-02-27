@@ -74,7 +74,7 @@ else
                     if fixed_code_map
                         code_given_state(j, i) = code_dist(j) * exp(exponent);
                     else
-                        code_given_state(j, i, t) = code_dist(j) * exp(exponent);
+                        code_given_state(j, i, t) = code_dist(j, t) * exp(exponent); %% BUG??? need code_dist(j, t)
                     end
                 end
             end

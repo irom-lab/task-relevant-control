@@ -111,7 +111,7 @@ for i = 1:length(betas)
     fprintf('Iter %d of %d\tBeta = %f\n', i, length(betas), betas(i));
     rng(0);
     
-    Problem.SolverOptions.Tradeof
+    Problem.SolverOptions.Tradeoff
     f = betas(i);
     
     [controller, obj_val, obj_hist, expected_cost, mi, ~, ~] = solve_info_ilqr(Problem);
@@ -161,9 +161,9 @@ close all;
 figure;
 hold on;
 
-histogram(c2(end, successes2), linspace(0, 0.5, 50), 'FaceColor', 'g', 'FaceAlpha', 1);
-histogram(c3(end, successes3), 0.005 + linspace(0, 0.5, 50), 'FaceColor', 'b', 'FaceAlpha', 0.8);
-histogram(c1(end, successes1), 0.0075 + linspace(0, 0.5, 50), 'FaceColor', 'r', 'FaceAlpha', 0.8);
+histogram(c2(end, successes2), linspace(0, 0.5, 50), 'FaceColor', 'g', 'FaceAlpha', 1); % Incorrect iLQG Cov
+histogram(c3(end, successes3), 0.005 + linspace(0, 0.5, 50), 'FaceColor', 'b', 'FaceAlpha', 0.8); % Incorrect TRV Cov
+histogram(c1(end, successes1), 0.0075 + linspace(0, 0.5, 50), 'FaceColor', 'r', 'FaceAlpha', 0.8); % Correct iLQG Cov
 
 % title(['\beta = ' num2str(SolverOptions.Tradeoff)]);
 % xlabel('Timestep', 'FontSize', 15);

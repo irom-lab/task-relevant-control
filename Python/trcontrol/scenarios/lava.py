@@ -1,12 +1,13 @@
 import numpy as np
 from trcontrol.framework.control.control_problem import DSCProblem
+from trcontrol.framework.prob.dists import FiniteDist
 
 
 class Lava(DSCProblem):
-    def __init__(self, length, goal):
+    def __init__(self, length: int, goal: int, init_dist: FiniteDist, horizon: int):
         self._length = length
         self._goal = goal
-        super().__init__()
+        super().__init__(init_dist, horizon)
 
     def create_dynamics(self) -> np.ndarray:
         # Order of inputs is left, stay, right.
