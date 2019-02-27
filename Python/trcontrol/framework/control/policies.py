@@ -30,9 +30,11 @@ class DiscretePolicy(Policy):
             raise RuntimeError('Need to call DiscretePolicy.solve() before asking for inputs.')
         return np.flatnonzero(self._input_given_state[:, state, t])
 
-    def solve(self, horizon) -> float:
+    def solve(self) -> float:
         costs = self._problem.costs
         dynamics = self._problem.dynamics
+        horizon = self._problem.horizon
+
         (n, _, m) = dynamics.shape
 
         values = np.zeros((n, horizon + 1))

@@ -159,24 +159,5 @@ class DSCProblem(ControlProblem):
 
         return traj, costs
 
-    def solve_value_iter(self, horizon: int) -> (np.ndarray, np.ndarray):
-        costs = self.costs
-        dynamics = self.dynamics
-        (n, _, m) = dynamics.shape
-
-        values = np.zeros((n, horizon + 1))
-        values[:, -1] = self._terminal_costs
-
-        policy = np.zeros((m, n, horizon))
-
-        for t in range(horizon - 1, -1, -1):
-            for i in range(n):
-                possible_future_costs = values[:, t + 1] @ dynamics[:, i, :] + costs[i, :]
-                input_idx = possible_future_costs.argmin()
-                values[i, t] = possible_future_costs[input_idx]
-                policy[input_idx, i, t] = 1
-
-        return policy, values
-
 class CSCProblem(ControlProblem):
     pass
