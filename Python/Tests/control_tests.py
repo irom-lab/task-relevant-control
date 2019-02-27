@@ -12,7 +12,6 @@ class DSCProblemTests(unittest.TestCase):
 
         val = policy.solve()
 
-
         for t in range(9):
             self.assertTrue(np.allclose(policy._input_given_state[:, :, t], np.array([[0, 0, 0, 1, 0],
                                                                                       [0, 0, 1, 0, 1],
