@@ -141,15 +141,20 @@ class DiscreteChannel:
         joint = self.joint(chan_input).pmf(shape=(n, m))
         marginal = self.marginal(chan_input).pmf()
 
-        inside_log = joint / (marginal.reshape((-1, 1)) * chan_input.pmf())
-        nonzeros = inside_log != 0
+        denom = marginal.reshape((-1, 1)) * chan_input.pmf()
+        inside_log = np.zeros(denom.shape)
+
+        denom_nonzeros = denom != 0
+        joint_nonzeros = joint != 0
+
+        inside_log[denom_nonzeros] = joint[denom_nonzeros] / denom[denom_nonzeros]
 
         pointwise = np.zeros((n, m))
 
         if base == 'e':
-            pointwise[nonzeros] = joint[nonzeros] * np.log(inside_log[nonzeros])
+            pointwise[joint_nonzeros] = joint[joint_nonzeros] * np.log(inside_log[joint_nonzeros])
         elif base == 2:
-            pointwise[nonzeros] = joint[nonzeros] * np.log2(inside_log[nonzeros])
+            pointwise[joint_nonzeros] = joint[joint_nonzeros] * np.log2(inside_log[joint_nonzeros])
         else:
             raise TypeError("Currently only handles base=2 or base='e'.")
 
