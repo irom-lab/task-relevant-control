@@ -1,5 +1,5 @@
 import numpy as np
-from trcontrol.framework.control.control_problem import DSCProblem
+from trcontrol.framework.control.problem import DSCProblem
 from trcontrol.framework.prob.dists import FiniteDist
 
 

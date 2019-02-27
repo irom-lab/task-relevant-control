@@ -1,7 +1,7 @@
 import numpy as np
 import trcontrol.framework.prob.dists as dists
 from trcontrol.framework.filter.bayes import BayesFilter
-from trcontrol.framework.control.control_problem import CSCProblem
+from trcontrol.framework.control.problem import CSCProblem
 
 class KalmanFilter(BayesFilter):
     def __init__(self, cscp: CSCProblem, init_dist: dists.GaussianDist, init_meas: np.ndarray) -> None:
