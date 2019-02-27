@@ -2,7 +2,7 @@ import numpy as np
 import cvxpy as cvx
 import trcontrol.framework.prob.channels as channels
 from typing import Union
-from trcontrol.framework.control.control_problem import ControlProblem, DSCProblem
+from trcontrol.framework.control.problem import ControlProblem, DSCProblem
 from trcontrol.framework.prob.dists import FiniteDist, kl
 from trcontrol.framework.control.policies import Policy
 
@@ -57,7 +57,7 @@ class DiscreteTRVPolicy(Policy):
             raise RuntimeError('Need to call DiscretePolicy.solve() before asking for inputs.')
         return FiniteDist(self._input_given_state[:, state, t]).sample()
 
-    def solve(self, horizon: int, iters: int = 100,
+    def solve(self, horizon: int, iters: int = 100, verbose=False,
               init_trv_given_state: Union[np.ndarray, None] = None,
               init_input_given_trv: Union[np.ndarray, None] = None):
         costs = self._problem.costs
@@ -91,10 +91,14 @@ class DiscreteTRVPolicy(Policy):
         obj_hist[0] = _objective(dynamics, costs, terminal_costs, self._tradeoff,
                                  trv_given_state, input_given_trv, self._problem.init_dist)
         obj_val = obj_hist[0]
+        self._trv_given_state = trv_given_state
+        self._input_given_trv = input_given_trv
 
         transitions = np.zeros((n, n))
 
         for iter in range(iters):
+            if verbose:
+                print(f'\t[{iter}] Objective:\t{obj_hist[iter]:.3}')
 
             # Forward Equations
             for t in range(horizon):
@@ -139,8 +143,7 @@ class DiscreteTRVPolicy(Policy):
 
                     values[i, t] = costs[i, :] @ input_given_state \
                                    + values[:, t + 1] @ (dynamics[:, i, :] @ input_given_state) \
-                                   + (1 / self._tradeoff) * kl(FiniteDist(trv_given_state[:, i, t]),
-                                                               FiniteDist(trv_dist[t].pmf()))
+                                   + (1 / self._tradeoff) * kl(FiniteDist(trv_given_state[:, i, t]), trv_dist[t])
 
             obj_hist[iter + 1] = _objective(dynamics, costs, terminal_costs, self._tradeoff, trv_given_state,
                                             input_given_trv, self._problem.init_dist)
@@ -149,6 +152,9 @@ class DiscreteTRVPolicy(Policy):
                 obj_val = obj_hist[iter + 1]
                 self._trv_given_state = trv_given_state
                 self._input_given_trv = input_given_trv
+
+        if verbose:
+            print(f'\t[{horizon}] Objective:\t{obj_hist[horizon]:.3}')
 
         self._solved = True
 
