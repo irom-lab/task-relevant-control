@@ -57,23 +57,23 @@ class DiscreteTRVPolicy(Policy):
             raise RuntimeError('Need to call DiscretePolicy.solve() before asking for inputs.')
         return FiniteDist(self._input_given_state[:, state, t]).sample()
 
-    def solve(self, horizon: int, iters: int=100,
-              init_trv_given_state: Union[np.ndarray, None]=None,
-              init_input_given_trv: Union[np.ndarray, None]=None):
+    def solve(self, horizon: int, iters: int = 100,
+              init_trv_given_state: Union[np.ndarray, None] = None,
+              init_input_given_trv: Union[np.ndarray, None] = None):
         costs = self._problem.costs
         dynamics = self._problem.dynamics
         terminal_costs = self._problem.terminal_costs
 
         (n, _, m) = dynamics.shape
-        p = self._trv_size # to be consistent with paper notation
+        p = self._trv_size  # to be consistent with paper notation
 
         values = np.zeros((n, horizon + 1))
         values[:, -1] = self._problem.terminal_costs
 
-        state_dist = np.zeros((n, horizon + 1))
-        state_dist[:, 0] = self._problem.init_dist.pmf()
+        state_dist = [FiniteDist(np.concatenate((np.array([1]), np.zeros(n - 1)))) for t in range(horizon + 1)]
+        state_dist[0] = self._problem.init_dist
 
-        trv_dist = np.zeros((p, horizon))
+        trv_dist = [FiniteDist(np.concatenate((np.array([1]), np.zeros(p - 1)))) for t in range(horizon)]
 
         if init_trv_given_state is None:
             trv_given_state = np.random.rand(p, n, horizon)
@@ -92,7 +92,6 @@ class DiscreteTRVPolicy(Policy):
                                  trv_given_state, input_given_trv, self._problem.init_dist)
         obj_val = obj_hist[0]
 
-
         transitions = np.zeros((n, n))
 
         for iter in range(iters):
@@ -100,12 +99,11 @@ class DiscreteTRVPolicy(Policy):
             # Forward Equations
             for t in range(horizon):
                 input_given_state = input_given_trv[:, :, t] @ trv_given_state[:, :, t]
-                sd = FiniteDist(state_dist[:, t])
 
                 transitions = _forward_eq(dynamics, input_given_state)
 
-                state_dist[:, t + 1] = channels.DiscreteChannel(transitions).marginal(sd).pmf()
-                trv_dist[:, t] = channels.DiscreteChannel(trv_given_state[:, :, t]).marginal(sd).pmf()
+                state_dist[t + 1] = channels.DiscreteChannel(transitions).marginal(state_dist[t])
+                trv_dist[t] = channels.DiscreteChannel(trv_given_state[:, :, t]).marginal(state_dist[t])
 
             # Backward Equations
             for t in range(horizon - 1, -1, -1):
@@ -114,7 +112,7 @@ class DiscreteTRVPolicy(Policy):
                     for j in range(p):
                         exponent = -self._tradeoff * ((values[:, t + 1] @ dynamics[:, i, :] @ input_given_trv[:, j, t])
                                                       + (costs[i, :] @ input_given_trv[:, j, t]))
-                        trv_given_state[j, i, t] = trv_dist[j, t] * np.exp(exponent)
+                        trv_given_state[j, i, t] = trv_dist[t].pmf(j) * np.exp(exponent)
 
                 trv_given_state[:, :, t] = trv_given_state[:, :, t] / trv_given_state[:, :, t].sum(axis=0)
 
@@ -128,23 +126,24 @@ class DiscreteTRVPolicy(Policy):
 
                 for i in range(p):
                     for j in range(m):
-                        c.value[j] = trv_given_state[i, :, t] @ (costs[:, j] * state_dist[:, t]) \
+                        c.value[j] = trv_given_state[i, :, t] @ (costs[:, j] * state_dist[t].pmf()) \
                                      + (values[:, t + 1] @ dynamics[:, :, j]) @ (trv_given_state[i, :, t]
-                                                                                  * state_dist[:, t])
+                                                                                 * state_dist[t].pmf())
                     prob.solve()
                     input_given_trv[:, i, t] = policy.value
 
                 # Value Function
                 for i in range(n):
                     input_given_state = input_given_trv[:, :, t] @ trv_given_state[:, i, t]
-                    trv_dist[:, t] = trv_given_state[:,:, t] @ state_dist[:, t]
+                    trv_dist[t] = channels.DiscreteChannel(trv_given_state[:, :, t]).marginal(state_dist[t])
 
                     values[i, t] = costs[i, :] @ input_given_state \
-                        + values[:, t + 1] @ (dynamics[:, i, :] @ input_given_state) \
-                        + (1 / self._tradeoff) * kl(FiniteDist(trv_given_state[:, i, t]), FiniteDist(trv_dist[:, t]))
+                                   + values[:, t + 1] @ (dynamics[:, i, :] @ input_given_state) \
+                                   + (1 / self._tradeoff) * kl(FiniteDist(trv_given_state[:, i, t]),
+                                                               FiniteDist(trv_dist[t].pmf()))
 
             obj_hist[iter + 1] = _objective(dynamics, costs, terminal_costs, self._tradeoff, trv_given_state,
-                                        input_given_trv, self._problem.init_dist)
+                                            input_given_trv, self._problem.init_dist)
 
             if obj_hist[iter + 1] <= obj_val:
                 obj_val = obj_hist[iter + 1]
@@ -174,7 +173,7 @@ def _objective(dynamics: np.ndarray, costs: np.ndarray, terminal_costs: np.ndarr
     horizon = trv_given_state.shape[2]
 
     for t in range(horizon):
-        input_given_state = input_given_trv[:, :, t] @ trv_given_state[: ,:, t]
+        input_given_state = input_given_trv[:, :, t] @ trv_given_state[:, :, t]
         trv_chan = channels.DiscreteChannel(trv_given_state[:, :, t])
         input_chan = channels.DiscreteChannel(input_given_state)
         dynamics_chan = channels.DiscreteChannel(_forward_eq(dynamics, input_given_state))
