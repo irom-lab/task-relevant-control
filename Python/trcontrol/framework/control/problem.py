@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from trcontrol.framework.filter.discrete import DiscreteFilter
 from trcontrol.framework.prob.dists import Distribution
 
+
 class ControlProblem(ABC):
     def __init__(self, init_dist: Distribution, horizon: int) -> None:
         self._init_dist = init_dist
