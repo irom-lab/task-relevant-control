@@ -1,9 +1,6 @@
 import numpy as np
-import cvxpy as cvx
-import trcontrol.framework.prob.channels as channels
 from typing import Union
-from trcontrol.framework.control.problem import ControlProblem, DSCProblem
-from trcontrol.framework.prob.dists import FiniteDist, kl
+from trcontrol.framework.control.problem import ControlProblem
 from abc import ABC, abstractmethod
 
 
@@ -19,5 +16,3 @@ class Policy(ABC):
     @property
     def solved(self) -> bool:
         return self._solved
-
-from trcontrol.framework.control.discrete_policies import *

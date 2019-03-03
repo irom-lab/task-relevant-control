@@ -1,5 +1,5 @@
 from trcontrol.scenarios.lava import Lava
-from trcontrol.framework.control.policies import DiscretePolicy
+from trcontrol.framework.control import DiscretePolicy
 from trcontrol.framework.prob import dists
 import unittest
 import numpy as np
