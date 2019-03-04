@@ -1,6 +1,5 @@
-import numpy as np
-from typing import Union
-from trcontrol.framework.control.problem import ControlProblem
+from ..control import StateType, ControlProblem
+from ..prob.channels import Channel
 from abc import ABC, abstractmethod
 
 
@@ -10,7 +9,12 @@ class Policy(ABC):
         self._solved = False
 
     @abstractmethod
-    def input(self, state: Union[int, np.ndarray], t: int):
+    def input(self, state: StateType, t: int):
+        pass
+
+    @property
+    @abstractmethod
+    def input_channel(self) -> Channel:
         pass
 
     @property

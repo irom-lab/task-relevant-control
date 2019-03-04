@@ -2,7 +2,7 @@ import numpy as np
 import cvxpy as cvx
 import trcontrol.framework.prob.channels as channels
 from typing import Union
-from trcontrol.framework.control.problem import ControlProblem, DSCProblem
+from trcontrol.framework.control.problem import DSCProblem
 from trcontrol.framework.prob.dists import FiniteDist, kl
 from trcontrol.framework.control.policies import Policy
 
@@ -18,14 +18,14 @@ class DiscretePolicy(Policy):
         return np.flatnonzero(self._input_given_state[:, state, t])
 
     def solve(self) -> float:
-        costs = self._problem.costs
-        dynamics = self._problem.dynamics
+        costs = self._problem.costs_tensor
+        dynamics = self._problem.dynamics_tensor
         horizon = self._problem.horizon
 
         (n, _, m) = dynamics.shape
 
         values = np.zeros((n, horizon + 1))
-        values[:, -1] = self._problem.terminal_costs
+        values[:, -1] = self._problem.terminal_costs_tensor
 
         self._input_given_state = np.zeros((m, n, horizon))
 
@@ -42,33 +42,40 @@ class DiscretePolicy(Policy):
 
 
 class DiscreteTRVPolicy(Policy):
-    def __init__(self, problem: DSCProblem, trv_size: int, tradeoff: float):
-        (n, _, m) = problem.dynamics.shape
+    def __init__(self, problem: DSCProblem, trv_size: int, tradeoff: float, policy_type: str = 'trv'):
+        (n, _, m) = problem.dynamics_tensor.shape
 
         self._trv_size = trv_size
         self._tradeoff = tradeoff
         self._trv_given_state = np.zeros((trv_size, n, problem.horizon))
         self._input_given_trv = np.zeros((m, trv_size, problem.horizon))
 
+        if policy_type.lower() != 'trv' and policy_type.lower() != 'state':
+            raise ValueError("Expected policy_type to be one of 'trv' or 'state'.")
+        self._policy_type = policy_type
+
         super().__init__(problem)
 
-    def input(self, state: int, t: int):
+    def input(self, state: int, t: int) -> int:
         if not self._solved:
             raise RuntimeError('Need to call DiscretePolicy.solve() before asking for inputs.')
-        return FiniteDist(self._input_given_state[:, state, t]).sample()
+        if self._policy_type == 'trv':
+            return FiniteDist(self._input_given_trv[:, state, t]).sample()
+        else:
+            return FiniteDist(self._input_given_trv[:, :, t] @ self._trv_given_state[:, state, t]).sample()
 
-    def solve(self, horizon: int, iters: int = 100, verbose=False,
+    def solve(self, horizon: int, iters: int = 100, verbose: bool = False,
               init_trv_given_state: Union[np.ndarray, None] = None,
               init_input_given_trv: Union[np.ndarray, None] = None):
-        costs = self._problem.costs
-        dynamics = self._problem.dynamics
-        terminal_costs = self._problem.terminal_costs
+        costs = self._problem.costs_tensor
+        dynamics = self._problem.dynamics_tensor
+        terminal_costs = self._problem.terminal_costs_tensor
 
         (n, _, m) = dynamics.shape
         p = self._trv_size  # to be consistent with paper notation
 
         values = np.zeros((n, horizon + 1))
-        values[:, -1] = self._problem.terminal_costs
+        values[:, -1] = self._problem.terminal_costs_tensor
 
         state_dist = [FiniteDist(np.concatenate((np.array([1]), np.zeros(n - 1)))) for t in range(horizon + 1)]
         state_dist[0] = self._problem.init_dist
