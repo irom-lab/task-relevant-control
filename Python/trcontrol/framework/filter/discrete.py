@@ -1,16 +1,16 @@
 import numpy as np
 import trcontrol.framework.prob.dists as dists
 import trcontrol.framework.prob.channels as channels
-from trcontrol.framework.filter.bayes import BayesFilter
+
+from .bayes import BayesFilter
+from ..control import DSCProblem, Policy
 
 
 class DiscreteFilter(BayesFilter):
-    def __init__(self, dynamics: np.ndarray, policy: np.ndarray, sensor: np.ndarray,
-                 init_dist: dists.Distribution, init_meas: int) -> None:
-        super().__init__(init_dist, init_meas)
-        self._dynamics = dynamics
-        self._policy = policy
-        self._sensor = sensor
+    def __init__(self, problem: DSCProblem, policy: Policy, init_meas: int) -> None:
+        super().__init__(problem, policy, init_meas)
+        self._dynamics = problem.dynamics_tensor
+        self._sensor = problem.sensor_tensor
 
     def mle(self) -> int:
         return np.argmax(self._belief.pmf())
@@ -23,9 +23,9 @@ class DiscreteFilter(BayesFilter):
         for i in range(m):
             next_belief_given_input[:, i] = self._dynamics.shape[:, :, i] @ belief_pmf
 
-        input_pmf = self._policy @ belief_pmf
+        input_dist = self._policy.input_channel.marginal(dists.FiniteDist(belief_pmf))
 
-        return dists.FiniteDist(next_belief_given_input @ input_pmf)
+        return dists.FiniteDist(next_belief_given_input @ input_dist.pmf())
 
     def measurement_update(self, proc_belief: dists.FiniteDist, meas: int) -> dists.FiniteDist:
         channel = channels.DiscreteChannel(self._sensor)

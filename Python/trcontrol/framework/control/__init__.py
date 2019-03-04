@@ -7,3 +7,4 @@ import numpy as np
 
 StateType = typing.Union[int, np.ndarray]
 InputType = typing.Union[int, np.ndarray]
+OutputType = typing.Union[int, np.ndarray]
