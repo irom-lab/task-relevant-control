@@ -1,13 +1,34 @@
 import numpy as np
 import trcontrol.framework.prob.dists as dists
 import trcontrol.framework.prob.channels as channels
+import trcontrol.framework.filter.bayes as bayes
+import typing
 
 from abc import ABC, abstractmethod
-from typing import Callable
 from trcontrol.framework.prob.dists import Distribution
-from .policies import Policy
-from ..filter import BayesFilter
-from ..control import StateType, InputType
+from typing import Callable
+
+StateType = typing.Union[int, np.ndarray]
+InputType = typing.Union[int, np.ndarray]
+OutputType = typing.Union[int, np.ndarray]
+
+
+class Policy(ABC):
+    def __init__(self, problem: 'ControlProblem'):
+        self._problem = problem
+        self._solved = False
+
+    @abstractmethod
+    def input(self, state: StateType, t: int):
+        pass
+
+    @abstractmethod
+    def input_channel(self, t: int) -> channels.Channel:
+        pass
+
+    @property
+    def solved(self) -> bool:
+        return self._solved
 
 
 class ControlProblem(ABC):
@@ -39,8 +60,8 @@ class ControlProblem(ABC):
     def horizon(self):
         return self._horizon
 
-    @abstractmethod
-    def simulate(self, policy: Policy, filter) -> (np.ndarray, np.ndarray):
+    def simulate(self, policy: Policy,
+                 filter: Callable[['ControlProblem', OutputType], 'bayes.BayesFilter']) -> (np.ndarray, np.ndarray):
         # Abstract way to determine state size.
         mean = self._init_dist.mean()
 
@@ -54,14 +75,14 @@ class ControlProblem(ABC):
 
         traj[:, 0] = self._init_dist.sample()
         meas = self.sensor(traj[:, 0], 0).sample()
-        bf = BayesFilter(self, meas)
+        bf = filter(self, meas)
 
         for t in range(self.horizon):
             input = policy.input(traj[:, t], t)
             traj[:, t + 1] = self.dynamics(traj[:, t], input, t).sample()
 
             meas = self.sensor(traj[:, t + 1], t + 1).sample()
-            bf.iterate(meas)
+            bf.iterate(meas, t)
 
             costs[t] = self.costs(traj[:, t], input)
 
@@ -138,15 +159,15 @@ class DSCProblem(ControlProblem):
 
     @property
     def sensor_tensor(self):
-        return self._dynamics_tensor
+        return self._sensor_tensor
 
     @property
     def costs_tensor(self):
-        return self._dynamics_tensor
+        return self._costs_tensor
 
     @property
     def terminal_costs_tensor(self):
-        return self._dynamics_tensor
+        return self._terminal_costs_tensor
 
 
 class LQGProblem(ControlProblem):

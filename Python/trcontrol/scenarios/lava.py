@@ -9,7 +9,7 @@ class Lava(DSCProblem):
         self._goal = goal
         super().__init__(init_dist, horizon)
 
-    def create_dynamics(self) -> np.ndarray:
+    def create_dynamics_tensor(self) -> np.ndarray:
         # Order of inputs is left, stay, right.
         dynamics = np.zeros((self._length, self._length, 3))
 
@@ -29,10 +29,10 @@ class Lava(DSCProblem):
 
         return dynamics
 
-    def create_sensor(self) -> np.ndarray:
+    def create_sensor_tensor(self) -> np.ndarray:
         pass
 
-    def create_costs(self) -> np.ndarray:
+    def create_costs_tensor(self) -> np.ndarray:
         costs = np.zeros((self._length, 3))
 
         costs[:(self._goal + 1), 0] = 1
@@ -47,7 +47,7 @@ class Lava(DSCProblem):
 
         return costs
 
-    def create_terminal_costs(self) -> np.ndarray:
+    def create_terminal_costs_tensor(self) -> np.ndarray:
         terminal_costs = np.zeros(self._length)
 
         terminal_costs[self._goal] = -10

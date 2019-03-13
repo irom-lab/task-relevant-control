@@ -2,9 +2,8 @@ import numpy as np
 import cvxpy as cvx
 import trcontrol.framework.prob.channels as channels
 from typing import Union
-from trcontrol.framework.control.problem import DSCProblem
+from trcontrol.framework.control.problem import Policy, DSCProblem
 from trcontrol.framework.prob.dists import FiniteDist, kl
-from trcontrol.framework.control.policies import Policy
 
 
 class DiscretePolicy(Policy):
@@ -16,6 +15,9 @@ class DiscretePolicy(Policy):
         if self._input_given_state is None:
             raise RuntimeError('Need to call DiscretePolicy.solve() before asking for inputs.')
         return np.flatnonzero(self._input_given_state[:, state, t])
+
+    def input_channel(self, t: int) -> channels.DiscreteChannel:
+        return channels.DiscreteChannel(self._input_given_state)
 
     def solve(self) -> float:
         costs = self._problem.costs_tensor
@@ -63,6 +65,9 @@ class DiscreteTRVPolicy(Policy):
             return FiniteDist(self._input_given_trv[:, state, t]).sample()
         else:
             return FiniteDist(self._input_given_trv[:, :, t] @ self._trv_given_state[:, state, t]).sample()
+
+    def input_channel(self, t: int) -> channels.DiscreteChannel:
+        return channels.DiscreteChannel(self._input_given_trv[:, :, t] @ self._trv_given_state[:, :, t])
 
     def solve(self, horizon: int, iters: int = 100, verbose: bool = False,
               init_trv_given_state: Union[np.ndarray, None] = None,

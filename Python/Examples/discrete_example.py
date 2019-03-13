@@ -1,6 +1,6 @@
 import numpy as np
 from trcontrol.scenarios.lava import Lava
-from trcontrol.framework.control import DiscreteTRVPolicy, DiscretePolicy
+from trcontrol.framework.control.discrete_policies import DiscreteTRVPolicy, DiscretePolicy
 from trcontrol.framework.prob.dists import FiniteDist
 
 np.random.seed(0)

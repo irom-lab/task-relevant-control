@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 
-from .policies import Policy
+from .problem import Policy
 
 
 class LQRPolicy(Policy):

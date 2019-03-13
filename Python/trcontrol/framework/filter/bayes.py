@@ -3,11 +3,12 @@ import trcontrol.framework.prob.dists as dists
 
 from abc import ABC, abstractmethod
 from typing import Union
-from ..control import ControlProblem, Policy, OutputType, StateType
+from trcontrol.framework.control import problem
 
 
 class BayesFilter(ABC):
-    def __init__(self, problem: ControlProblem, policy: Policy, init_meas: OutputType) -> None:
+    def __init__(self, problem: 'problem.ControlProblem', policy: 'problem.Policy',
+                 init_meas: 'problem.OutputType') -> None:
         self._policy = policy
         self._belief = self.measurement_update(problem.init_dist, init_meas)
 
@@ -15,17 +16,17 @@ class BayesFilter(ABC):
         return self._belief
 
     @abstractmethod
-    def process_update(self, belief: dists.Distribution) -> dists.Distribution:
+    def process_update(self, belief: dists.Distribution, t: int) -> dists.Distribution:
         pass
 
     @abstractmethod
-    def measurement_update(self, proc_belief: dists.Distribution, meas: OutputType) -> dists.Distribution:
+    def measurement_update(self, proc_belief: dists.Distribution, meas: 'problem.OutputType', t: int) -> dists.Distribution:
         pass
 
     @abstractmethod
-    def mle(self) -> StateType:
+    def mle(self) -> 'problem.StateType':
         pass
 
-    def iterate(self, meas: Union[np.ndarray, int]):
-        proc_belief = self.process_update(self._belief)
-        self._belief = self.measurement_update(proc_belief, meas)
+    def iterate(self, meas: Union[np.ndarray, int], t: int):
+        proc_belief = self.process_update(self._belief, t)
+        self._belief = self.measurement_update(proc_belief, meas, t)

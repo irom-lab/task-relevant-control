@@ -15,7 +15,7 @@ class DiscreteFilter(BayesFilter):
     def mle(self) -> int:
         return np.argmax(self._belief.pmf())
 
-    def process_update(self, belief: dists.FiniteDist) -> dists.FiniteDist:
+    def process_update(self, belief: dists.FiniteDist, t: int) -> dists.FiniteDist:
         (n, _, m) = self._dynamics.shape
         belief_pmf = belief.pmf()
         next_belief_given_input = np.zeros(n, m)
@@ -23,11 +23,11 @@ class DiscreteFilter(BayesFilter):
         for i in range(m):
             next_belief_given_input[:, i] = self._dynamics.shape[:, :, i] @ belief_pmf
 
-        input_dist = self._policy.input_channel.marginal(dists.FiniteDist(belief_pmf))
+        input_dist = self._policy.input_channel(t).marginal(dists.FiniteDist(belief_pmf))
 
         return dists.FiniteDist(next_belief_given_input @ input_dist.pmf())
 
-    def measurement_update(self, proc_belief: dists.FiniteDist, meas: int) -> dists.FiniteDist:
+    def measurement_update(self, proc_belief: dists.FiniteDist, meas: int, t: int) -> dists.FiniteDist:
         channel = channels.DiscreteChannel(self._sensor)
 
         return channel.posterior(proc_belief, meas)
