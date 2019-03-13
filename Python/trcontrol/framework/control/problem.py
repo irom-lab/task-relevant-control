@@ -57,8 +57,23 @@ class ControlProblem(ABC):
         return self._init_dist
 
     @property
-    def horizon(self):
+    def horizon(self) -> int:
         return self._horizon
+
+    @property
+    @abstractmethod
+    def n_states(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def n_inputs(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def n_outputs(self) -> int:
+        pass
 
     def simulate(self, policy: Policy,
                  filter: Callable[['ControlProblem', OutputType], 'bayes.BayesFilter']) -> (np.ndarray, np.ndarray):
@@ -169,21 +184,38 @@ class DSCProblem(ControlProblem):
     def terminal_costs_tensor(self):
         return self._terminal_costs_tensor
 
+    @property
+    @abstractmethod
+    def n_states(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def n_inputs(self) -> int:
+        pass
+
+    @property
+    @abstractmethod
+    def n_outputs(self) -> int:
+        pass
+
 
 class LQGProblem(ControlProblem):
     def __init__(self, init_dist: dists.GaussianDist, horizon: int,
                  A: np.ndarray, B: np.ndarray, C: np.ndarray,
                  proc_cov: np.ndarray, meas_cov: np.ndarray,
-                 Q: np.ndarray, R: np.ndarray, Qf: np.ndarray):
+                 Q: np.ndarray, g: np.ndarray, R: np.ndarray, w: np.ndarray, Qf: np.ndarray):
 
         self._A = A.copy()
         self._B = B.copy()
         self._C = C.copy()
-        self._proc_cov = proc_cov
-        self._meas_cov = meas_cov
-        self._Q = Q
-        self._R = R
-        self._Qf = Qf
+        self._proc_cov = proc_cov.copy()
+        self._meas_cov = meas_cov.copy()
+        self._Q = Q.copy()
+        self._R = R.copy()
+        self._Qf = Qf.copy()
+        self._g = g.copy()
+        self._w = w.copy()
 
         super().__init__(init_dist, horizon)
 
@@ -198,6 +230,18 @@ class LQGProblem(ControlProblem):
 
     def terminal_costs(self, state: StateType) -> float:
         return state.transpose() @ self._Qf @ state
+
+    @property
+    def n_states(self) -> int:
+        return self._A.shape[0]
+
+    @property
+    def n_inputs(self) -> int:
+        return self._B.shape[1]
+
+    @property
+    def n_outputs(self) -> int:
+        return self._C.shape[0]
 
 
 class NLGProblem(ControlProblem):
