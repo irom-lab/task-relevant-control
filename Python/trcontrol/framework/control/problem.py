@@ -290,27 +290,17 @@ class NLGProblem(ControlProblem):
         return self._meas_cov
 
     def linearize(self, state_traj: np.ndarray, input_traj: np.ndarray) -> LQGProblem:
-        (A, B) = self.linearize_dynamics(state_traj[:, 0], input_traj[:, 0], 0)
-        (n, _) = A.shape
-        (_, m) = B.shape
-        l = self.sensor(state_traj[:, 0], 0).mean().shape
+        n = self.n_states
+        m = self.n_inputs
+        l = self.n_outputs
 
-        A = np.concatenate((A.reshape((n, n, 1)), np.zeros((n, n, self.horizon - 1))), axis=2)
-        B = np.concatenate((B.reshape((n, m, 1)), np.zeros((n, m, self.horizon - 1))), axis=2)
+        A = np.zeros((n, n, self.horizon))
+        B = np.zeros((m, n, self.horizon))
+        C = np.zeros((l, n, self.horizon))
 
-        C = np.concatenate((self.linearize_sensor(state_traj[:, 0], 0),
-                            np.zeros((l, n, self.horizon - 1))), axis=2)
-
-        Q = np.zeros((n, n, self.horizon))
-        R = np.zeros((m, m, self.horizon))
-
-        (Q[:, :, 0], R[:, :, 0]) = self.quadraticize_costs(state_traj[:, 0], input_traj[:, 0], 0)
-
-        for t in range(1, self._horizon):
+        for t in range(self._horizon):
             (A[:, :, t], B[:, :, t]) = self.linearize_dynamics(state_traj[:, t], input_traj[:, t], t)
             C[:, :, t] = self.linearize_sensor(state_traj[:, t], t)
-            (Q[:, :, t], R[:, :, t]) = self.quadraticize_costs(state_traj[:, t], input_traj[:, t])
 
-        Qf = self.quadraticize_terminal_costs(state_traj[:, -1])
-
-        return LQGProblem(self.init_dist, self.horizon, A, B, C, self.proc_cov, self.meas_cov, Q, R, Qf)
+        return LQGProblem(self.init_dist, self.horizon, A, B, C, self.proc_cov,
+                          self.meas_cov, self._Q, self._g, self._R,self._w, self._Qf)
