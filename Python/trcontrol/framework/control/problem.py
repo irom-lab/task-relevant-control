@@ -45,7 +45,7 @@ class ControlProblem(ABC):
         pass
 
     @abstractmethod
-    def costs(self, state: StateType, input: InputType) -> float:
+    def costs(self, state: StateType, input: InputType, t: int) -> float:
         pass
 
     @abstractmethod
@@ -162,7 +162,7 @@ class DSCProblem(ControlProblem):
     def sensor(self, state: int, t: int = 0) -> dists.FiniteDist:
         return dists.FiniteDist(self._sensor_tensor[:, state])
 
-    def costs(self, state: int, input: int) -> float:
+    def costs(self, state: int, input: int, t: int) -> float:
         return self._costs_tensor[state, input]
 
     def terminal_costs(self, state: int) -> float:
@@ -225,8 +225,8 @@ class LQGProblem(ControlProblem):
     def sensor(self, state: np.ndarray, t: int) -> dists.GaussianDist:
         return dists.GaussianDist(self._C[:, :, t] @ state, self._meas_cov)
 
-    def costs(self, state: StateType, input: InputType) -> float:
-        return state.transpose() @ self._Q @ state + input.transpose() @ self._R @ input.transpose()
+    def costs(self, state: StateType, input: InputType, t: int) -> float:
+        return state.transpose() @ self._Q[:, :, t] @ state + input.transpose() @ self._R[:, :, t] @ input.transpose()
 
     def terminal_costs(self, state: StateType) -> float:
         return state.transpose() @ self._Qf @ state
@@ -247,9 +247,16 @@ class LQGProblem(ControlProblem):
 class NLGProblem(ControlProblem):
     @abstractmethod
     def __init__(self, init_dist: dists.GaussianDist, horizon: int,
-                 proc_cov: np.ndarray, meas_cov: np.ndarray):
-        self._proc_cov = proc_cov
-        self._meas_cov = meas_cov
+                 proc_cov: np.ndarray, meas_cov: np.ndarray,
+                 Q: np.ndarray, g: np.ndarray, R: np.ndarray, w: np.ndarray, Qf: np.ndarray):
+        self._proc_cov = proc_cov.copy()
+        self._meas_cov = meas_cov.copy()
+        self._Q = Q.copy()
+        self._R = R.copy()
+        self._Qf = Qf.copy()
+        self._g = g.copy()
+        self._w = w.copy()
+
         super().__init__(init_dist, horizon)
 
     @abstractmethod
@@ -268,21 +275,11 @@ class NLGProblem(ControlProblem):
     def linearize_sensor(self, state: StateType, t: int) -> np.ndarray:
         pass
 
-    @abstractmethod
-    def costs(self, state: StateType, input: InputType) -> float:
-        pass
+    def costs(self, state: StateType, input: InputType, t: int) -> float:
+        return state.transpose() @ self._Q[:, :, t] @ state + input.transpose() @ self._R[:, :, t] @ input.transpose()
 
-    @abstractmethod
-    def quadraticize_costs(self, state: StateType, input: InputType) -> (np.ndarray, np.ndarray):
-        pass
-
-    @abstractmethod
     def terminal_costs(self, state: StateType) -> float:
-        pass
-
-    @abstractmethod
-    def quadraticize_terminal_costs(self, state: StateType) -> np.ndarray:
-        pass
+        return state.transpose() @ self._Qf @ state
 
     @property
     def proc_cov(self) -> np.ndarray:

@@ -8,32 +8,42 @@ from ..framework.control.problem import NLGProblem
 
 
 class Slip(NLGProblem):
-    def __init__(self, init_dist: dists.GaussianDist, horizon: int, proc_cov: np.ndarray, meas_cov: np.ndarray):
-        pass
+    def __init__(self, init_dist: dists.GaussianDist, horizon: int,
+                 proc_cov: np.ndarray, meas_cov: np.ndarray,
+                 Q: np.ndarray, g: np.ndarray, R: np.ndarray, w: np.ndarray, Qf: np.ndarray):
+        super().__init__(init_dist, horizon, proc_cov, meas_cov, Q, g, R, w, Qf)
 
     def dynamics(self, state: StateType, input: InputType, t: int) -> dists.Distribution:
-        pass
+        return dists.GaussianDist(slip_return_map(state, input, self), self._proc_cov)
 
     def linearize_dynamics(self, state: StateType, input: InputType, t: int) -> (np.ndarray, np.ndarray):
-        pass
+        delta = 1e-6
+
+        A = np.zeros((self.n_states, self.n_states))
+
+        for i in range(self.n_states):
+            perturbed = state.copy()
+            perturbed[i] += delta
+            forward = self.dynamics(perturbed, input, t)
+
+            perturbed = state.copy()
+            perturbed[i] -= delta
+            reverse = self.dynamics(perturbed, input, t)
+
+            A[:, i] = (forward.mean() - reverse.mean()) / (2 * delta)
+
+        forward = self.dynamics(state, input + delta, t)
+        reverse = self.dynamics(state, input - delta, t)
+
+        B = (forward.mean() - reverse.mean()) / (2 * delta)
+
+        return A, B
 
     def sensor(self, state: StateType, t: int) -> dists.Distribution:
-        pass
+        return dists.GaussianDist(state, self._meas_cov)
 
     def linearize_sensor(self, state: StateType, t: int) -> np.ndarray:
-        pass
-
-    def costs(self, state: StateType, input: InputType) -> float:
-        pass
-
-    def quadraticize_costs(self, state: StateType, input: InputType) -> (np.ndarray, np.ndarray):
-        pass
-
-    def terminal_costs(self, state: StateType) -> float:
-        pass
-
-    def quadraticize_terminal_costs(self, state: StateType) -> np.ndarray:
-        pass
+        return np.eye(self.n_states)
 
     @property
     def n_states(self) -> int:
@@ -52,10 +62,10 @@ def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
                     falling: bool = False, tmax: float = 1) -> np.ndarray:
     stance_state = np.array([1, state[1], state[2], state[3]])
 
-    stance_events_handle = lambda t, stance_state: stance_events(t, stance_state, slip)
+    def stance_events_handle(t, stance_state): stance_events(t, stance_state, slip)
     stance_events_handle.terminal = True
 
-    stance_dynamics_handle = lambda t, stance_state: stance_dynamics(t, stance_state, slip)
+    def stance_dynamics_handle(t, stance_state): stance_dynamics(t, stance_state, slip)
 
     sol = solve_ivp(stance_dynamics_handle, (0, tmax), stance_state, events=stance_events_handle, max_step=0.0001)
 
@@ -68,10 +78,10 @@ def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
 
         return x
 
-    flight_events_handle = lambda t, flight_state: flight_events(t, flight_state, input + state[1], slip)
+    def flight_events_handle(t, flight_state): flight_events(t, flight_state, input + state[1], slip)
     flight_events_handle.terminal = True
 
-    flight_dynamics_handle = lambda t, flight_state: flight_dynamics(t, flight_state, slip)
+    def flight_dynamics_handle(t, flight_state): flight_dynamics(t, flight_state, slip)
     sol = solve_ivp(flight_dynamics_handle, (sol.t[-1], tmax), flight_state, events=flight_events_handle, max_step=0.0001)
 
     final_flight_state = sol.y[:, -1]
