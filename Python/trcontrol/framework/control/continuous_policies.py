@@ -36,7 +36,7 @@ class LQRPolicy(Policy):
         P = self._problem._Qf
         b = P @ (ref_states[:, -1] - g[:, -1])
 
-        for t in range(self._problem.horizon, -1, -1):
+        for t in range(self._problem.horizon - 1, -1, -1):
             self._K[:, :, t] = -np.linalg.inv(R[:, :, t] + B[:, :, t].transpose() @ P @ B[:, :, t]) \
                          @ B[:, :, t].transpose() @ P @ A[:, :, t]
 
@@ -88,7 +88,7 @@ class ILQRPolicy(Policy):
                 self._state_traj[:, t + 1] = self._problem.dynamics(self._state_traj[:, t],
                                                                     self._input_traj[:, t], t).mean()
 
-                obj_hist[iter] += self._problem.costs(self._state_traj[: t], self._input_traj[:, t])
+                obj_hist[iter] += self._problem.costs(self._state_traj[:, t], self._input_traj[:, t], t)
 
             obj_hist[iter] += self._problem.terminal_costs(self._state_traj[:, -1])
 
@@ -98,8 +98,8 @@ class ILQRPolicy(Policy):
                 print(f'\t[{iter}] Obj Value: {obj_hist[iter]}')
 
             if obj_hist[iter] < obj_val:
-                obj_val = obj_hist
+                obj_val = obj_hist[iter]
                 self._linearized_policy = linearized_policy
 
-            linearized_policy = LQRPolicy(self._problem.linearize())
+            linearized_policy = LQRPolicy(self._problem.linearize(self._state_traj, self._input_traj))
             linearized_policy.solve(self._state_traj, self._input_traj)

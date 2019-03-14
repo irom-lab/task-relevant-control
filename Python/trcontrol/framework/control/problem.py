@@ -226,10 +226,11 @@ class LQGProblem(ControlProblem):
         return dists.GaussianDist(self._C[:, :, t] @ state, self._meas_cov)
 
     def costs(self, state: StateType, input: InputType, t: int) -> float:
-        return state.transpose() @ self._Q[:, :, t] @ state + input.transpose() @ self._R[:, :, t] @ input.transpose()
+        return (state - self._g[:, t]).transpose() @ self._Q[:, :, t] @ (state - self._g[:, t])\
+               + (input - self._w[:, t]).transpose() @ self._R[:, :, t] @ (input - self._w[:, t])
 
     def terminal_costs(self, state: StateType) -> float:
-        return state.transpose() @ self._Qf @ state
+        return (state - self._g[:, -1]).transpose() @ self._Qf @ (state - self._g[:, -1])
 
     @property
     def n_states(self) -> int:
@@ -276,10 +277,11 @@ class NLGProblem(ControlProblem):
         pass
 
     def costs(self, state: StateType, input: InputType, t: int) -> float:
-        return state.transpose() @ self._Q[:, :, t] @ state + input.transpose() @ self._R[:, :, t] @ input.transpose()
+        return (state - self._g[:, t]).transpose() @ self._Q[:, :, t] @ (state - self._g[:, t])\
+               + (input - self._w[:, t]).transpose() @ self._R[:, :, t] @ (input - self._w[:, t])
 
     def terminal_costs(self, state: StateType) -> float:
-        return state.transpose() @ self._Qf @ state
+        return (state - self._g[:, -1]).transpose() @ self._Qf @ (state - self._g[:, -1])
 
     @property
     def proc_cov(self) -> np.ndarray:
@@ -295,7 +297,7 @@ class NLGProblem(ControlProblem):
         l = self.n_outputs
 
         A = np.zeros((n, n, self.horizon))
-        B = np.zeros((m, n, self.horizon))
+        B = np.zeros((n, m, self.horizon))
         C = np.zeros((l, n, self.horizon))
 
         for t in range(self._horizon):
