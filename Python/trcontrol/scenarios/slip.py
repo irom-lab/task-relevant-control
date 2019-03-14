@@ -10,8 +10,14 @@ from ..framework.control.problem import NLGProblem
 class Slip(NLGProblem):
     def __init__(self, init_dist: dists.GaussianDist, horizon: int,
                  proc_cov: np.ndarray, meas_cov: np.ndarray,
-                 Q: np.ndarray, g: np.ndarray, R: np.ndarray, w: np.ndarray, Qf: np.ndarray):
+                 Q: np.ndarray, g: np.ndarray, R: np.ndarray,
+                 w: np.ndarray, Qf: np.ndarray, mass: float, touchdown_radius: float,
+                 spring_const: float, gravity: float):
         super().__init__(init_dist, horizon, proc_cov, meas_cov, Q, g, R, w, Qf)
+        self._mass = mass
+        self._touchdown_radius = touchdown_radius
+        self._spring_const = spring_const
+        self._gravity = gravity
 
     def dynamics(self, state: StateType, input: InputType, t: int) -> dists.Distribution:
         return dists.GaussianDist(slip_return_map(state, input, self), self._proc_cov)
@@ -44,6 +50,18 @@ class Slip(NLGProblem):
 
     def linearize_sensor(self, state: StateType, t: int) -> np.ndarray:
         return np.eye(self.n_states)
+
+    @property
+    def mass(self): return self._mass
+
+    @property
+    def touchdown_radius(self): return self._touchdown_radius
+
+    @property
+    def spring_const(self): return self._spring_const
+
+    @property
+    def gravity(self): return self._gravity
 
     @property
     def n_states(self) -> int:
@@ -123,10 +141,10 @@ def flight_dynamics(t: float, flight_state: np.ndarray, slip: Slip) -> np.ndarra
 
 
 def stance_dynamics(t: float, stance_state: np.ndarray, slip: Slip) -> np.ndarray:
-    m = slip.mass;
-    r0 = slip.touchdown_radius;
-    k = slip.spring_const;
-    g = slip.gravity;
+    m = slip.mass
+    r0 = slip.touchdown_radius
+    k = slip.spring_const
+    g = slip.gravity
 
     return np.array([stance_state[2], stance_state[3],
         k / m * (r0 - stance_state[0]) + stance_state[0] * stance_state[3] ** 2 - g * np.cos(stance_state[1]),
