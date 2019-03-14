@@ -80,10 +80,10 @@ def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
                     falling: bool = False, tmax: float = 1) -> np.ndarray:
     stance_state = np.array([1, state[1], state[2], state[3]])
 
-    def stance_events_handle(t, stance_state): stance_events(t, stance_state, slip)
+    stance_events_handle = lambda t, stance_state: stance_events(t, stance_state, slip)
     stance_events_handle.terminal = True
 
-    def stance_dynamics_handle(t, stance_state): stance_dynamics(t, stance_state, slip)
+    stance_dynamics_handle = lambda t, stance_state: stance_dynamics(t, stance_state, slip)
 
     sol = solve_ivp(stance_dynamics_handle, (0, tmax), stance_state, events=stance_events_handle, max_step=0.0001)
 
@@ -96,10 +96,10 @@ def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
 
         return x
 
-    def flight_events_handle(t, flight_state): flight_events(t, flight_state, input + state[1], slip)
+    flight_events_handle = lambda t, flight_state: flight_events(t, flight_state, input + state[1], slip)
     flight_events_handle.terminal = True
 
-    def flight_dynamics_handle(t, flight_state): flight_dynamics(t, flight_state, slip)
+    flight_dynamics_handle = lambda t, flight_state: flight_dynamics(t, flight_state, slip)
     sol = solve_ivp(flight_dynamics_handle, (sol.t[-1], tmax), flight_state, events=flight_events_handle, max_step=0.0001)
 
     final_flight_state = sol.y[:, -1]
