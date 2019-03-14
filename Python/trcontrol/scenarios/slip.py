@@ -52,16 +52,16 @@ class Slip(NLGProblem):
         return np.eye(self.n_states)
 
     @property
-    def mass(self): return self._mass
+    def mass(self) -> float: return self._mass
 
     @property
-    def touchdown_radius(self): return self._touchdown_radius
+    def touchdown_radius(self) -> float: return self._touchdown_radius
 
     @property
-    def spring_const(self): return self._spring_const
+    def spring_const(self) -> float: return self._spring_const
 
     @property
-    def gravity(self): return self._gravity
+    def gravity(self) -> float: return self._gravity
 
     @property
     def n_states(self) -> int:
@@ -107,6 +107,7 @@ def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
 
     return np.array([state[0] + final_flight_state[0], next_stance[1], next_stance[2], next_stance[3]])
 
+
 def stance_events(t: float, stance_state: np.ndarray, slip: Slip) -> float:
     return float(not (stance_state[0] > slip.touchdown_radius and stance_state[2] > 0))
 
@@ -124,7 +125,7 @@ def flight_to_stance(flight_state: np.ndarray, input: np.ndarray) -> np.ndarray:
                      -(flight_state[2] * np.cos(theta0) + flight_state[3] * np.sin(theta0)) / r])
 
 
-def stance_to_flight(stance_state: np.ndarray):
+def stance_to_flight(stance_state: np.ndarray) -> np.ndarray:
     return np.array([-stance_state[0] * np.sin(stance_state[1]),
                      stance_state[0] * np.cos(stance_state[1]),
                      -stance_state[2] * np.sin(stance_state[1])
