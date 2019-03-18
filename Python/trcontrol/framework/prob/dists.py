@@ -211,6 +211,22 @@ class GaussianDist(ContinuousDist):
     def dim(self) -> int:
         return self._mean.size
 
+    def __add__(self, other: Union[np.ndarray, 'GaussianDist']):
+        if type(other) is np.ndarray:
+            return GaussianDist(self.mean() + other, self.cov())
+        elif type(other) is GaussianDist:
+            return GaussianDist(self.mean() + other, self.cov() + other.cov())
+        else:
+            raise TypeError('Can only add Gaussians and deterministic quantities.')
+
+    def __sub__(self, other: Union[np.ndarray, 'GaussianDist']):
+        if type(other) is np.ndarray:
+            return GaussianDist(self.mean() - other, self.cov())
+        elif type(other) is GaussianDist:
+            return GaussianDist(self.mean() - other, self.cov() + other.cov())
+        else:
+            raise TypeError('Can only subtract Gaussians and deterministic quantities.')
+
     def mean(self) -> np.ndarray:
         return self._mean
 
