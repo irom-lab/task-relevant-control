@@ -76,7 +76,7 @@ class Slip(NLGProblem):
 
 
 def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
-                    falling: bool = False, tmax: float = 1.0) -> np.ndarray:
+                    falling: bool = False, tmax: float = 1.0, max_step: float = 0.0001) -> np.ndarray:
     """
     The Poincare return map for the SLIP model.
 
@@ -86,6 +86,7 @@ def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
     :param slip: The SLIP model instance.
     :param falling: Whether or not the model falling over triggers early termination of model's numerical integration.
     :param tmax: The maximum amount of time allowed for integration
+    :param max_step: The maximum step size used for integration
     :return: A 4-vector containing either the next touchdown state of the model or NaNs if the hopper fell over.
     """
     stance_state = np.array([1, state[1], state[2], state[3]])
@@ -95,7 +96,7 @@ def slip_return_map(state: np.ndarray, input: np.ndarray, slip: Slip,
 
     stance_dynamics_handle = lambda t, stance_state: stance_dynamics(t, stance_state, slip)
 
-    sol = solve_ivp(stance_dynamics_handle, (0, tmax), stance_state, events=stance_events_handle, max_step=0.0001)
+    sol = solve_ivp(stance_dynamics_handle, (0, tmax), stance_state, events=stance_events_handle, max_step=max_step)
 
     final_stance_state = sol.y[:, -1]
     flight_state = stance_to_flight(final_stance_state)
