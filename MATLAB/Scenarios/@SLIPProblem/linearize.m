@@ -1,5 +1,5 @@
 function [A, B] = linearize(Obj, State, Input, t)
-    delta = Obj.Parameters.Delta;
+    delta = 1e-2;%Obj.Parameters.Delta; I changed this for debugging the python version.
     
     A = zeros(Obj.Parameters.NStates);
     B = 0;
