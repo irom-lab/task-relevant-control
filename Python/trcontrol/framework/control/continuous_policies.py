@@ -276,7 +276,7 @@ class ITRVPolicy(Policy):
 
                 objective = 0.5 * (cpK @ x_tilde_bar + cph - delta_w[:, t]).T @ R[:, :, t] @ (cpK @ x_tilde_bar + cph - delta_w[:, t]) + 0.5 * cp.trace(cpK.T @ R[:, :, t] @ cpK @ Sigma_x_tilde) + 0.5 @ x_bar @ A[:, :, t].transpose() @ P[:, :, t + 1] @ A[:, :, t] @ x_bar + 0.5 * x_bar.transpose() @ (A[:, :, t].transpose() @ P[:, :, t + 1] @ B[:, :, t] @ cpK @ C[:, :, t] + C[:, :, t].transpose() @ cpK.T @ B[:, :, t].transpose() @ P[:, :, t + 1] @ A[:, :, t]) @ x_bar + x_bar.transpose() @ A[:, :, t].transpose() @ P[:, :, t + 1] @ B[:, :, t] @ cpK @ a[:, t] + x_bar.transpose() @ A[:, :, t].transpose() @ P[:, :, t + 1] @ B[:, :, t] @ cph + 0.5 * x_tilde_bar.transpose() * cpK.T @ B[:, :, t].transpose() @ P[:, :, t + 1] @ B[:, :, t] @ cpK @ x_tilde_bar + x_tilde_bar.transpose() @ cpK.T @ B.transpose() @ P[:, :, t + 1] @ B[:, :, t] @ cph + 0.5 @ cph.T @ B.transpose() @ P[:, :, t + 1] @ B[:, :, t] @ cph + b[:, t + 1].transpose() @ (A[:, :, t] @ x_bar + B[:, :, t] @ cpK @ x_tilde_bar + B[:, :, t] @ cph) + 0.5 * cp.trace(Sigma_x @ A[:, :, t].transpose() @ P[:, :, t + 1] @ A[:, :, t] + Sigma_x @ (A[:, :, t].transpose() @ P[:, :, t + 1] @ B[:, :, t] @ K @ C[:, :, t] + C[:, :, t].transpose() @ cpK.T @ B[:, :, t].transpose() @ P[:, :, t + 1] @ A[:, :, t])) + cp.trace(Sigma_x_tilde @ cpK.T @ B.transpose() @ P[:, :, t + 1] @ B[:, :, t] @ cpK)
                 prob = cp.Problem(cp.Minimize(objective), [])
-                prob.solve()
+                prob.solve(solver=cp.MOSEK)
 
                 K[:, :, t] = cpK.value.copy()
                 h[:, t] = cph.value.copy()
