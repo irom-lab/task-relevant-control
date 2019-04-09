@@ -111,8 +111,7 @@ for i = 1:length(betas)
     fprintf('Iter %d of %d\tBeta = %f\n', i, length(betas), betas(i));
     rng(0);
     
-    Problem.SolverOptions.Tradeoff
-    f = betas(i);
+    Problem.SolverOptions.Tradeoff = betas(i);
     
     [controller, obj_val, obj_hist, expected_cost, mi, ~, ~] = solve_info_ilqr(Problem);
     
