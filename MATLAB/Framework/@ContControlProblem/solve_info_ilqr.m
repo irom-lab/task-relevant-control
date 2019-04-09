@@ -45,8 +45,8 @@ function [controller, obj_val, obj_hist, best_expected_cost, best_mi, mean_state
     f = zeros(m, horizon);       
     
     if isfield(Obj.SolverOptions, 'InitController')
-        K =  Obj.SolverOptions.InitController.C;
-        f =  Obj.SolverOptions.InitController.d;
+        K =  Obj.SolverOptions.InitController.K;
+        f =  Obj.SolverOptions.InitController.f;
         
         
         C = repmat(eye(p, n), 1, 1, horizon);
@@ -254,9 +254,20 @@ function mi = mutual_info(state_cov, C, Sigma_eta)
     Sigma_joint = [state_cov, state_cov * C';
                    C * state_cov, C * state_cov * C' + Sigma_eta];
     
-    Hx = 0.5 * log(det(state_cov) * (2 * pi * exp(1)) ^ n);
-    Hx_tilde = 0.5 * log(det(C * state_cov * C' + Sigma_eta) * (2 * pi * exp(1)) ^ p);
-    Hjoint = 0.5 * log(det(Sigma_joint) * (2 * pi * exp(1)) ^ (n + p));
+    eigs_state_cov = eigs(state_cov);
+    det_state_cov = prod(eigs_state_cov(eigs_state_cov > 0));
     
-    mi = Hx - Hjoint + Hx_tilde;
+    eigs_trv_cov = eigs(C * state_cov * C' + Sigma_eta);
+    det_trv_cov = prod(eigs_trv_cov(eigs_trv_cov > 0));
+    
+    eigs_joint_cov = eigs(Sigma_joint);
+    det_joint_cov = prod(eigs_joint_cov(eigs_joint_cov > 0));
+    
+    Hx = 0.5 * log(det(state_cov) * (2 * pi * exp(1)) ^ nnz(eigs_state_cov));
+    Hx_tilde = 0.5 * log(det(C * state_cov * C' + Sigma_eta) * (2 * pi * exp(1)) ^ nnz(eigs_trv_cov));
+    Hjoint = 0.5 * log(det(Sigma_joint) * (2 * pi * exp(1)) ^ (nnz(eigs_state_cov) + nnz(eigs_trv_cov)));
+    
+    Hx_tilde_given_x = 0.5 * log(det(Sigma_eta) * (2 * pi * exp(1)) ^ nnz(eigs(Sigma_eta)));
+    
+    mi = Hx_tilde - Hx_tilde_given_x;
 end
